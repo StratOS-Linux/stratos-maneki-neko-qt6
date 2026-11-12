@@ -28,13 +28,44 @@ QWidget#ScrollContents {
 QFrame#HeaderBar {
     background-color: palette(base);
     border-bottom: 1px solid palette(mid);
-    min-height: 52px;
+    min-height: 46px;
 }
 
 QLabel#HeaderTitle {
     font-weight: bold;
     font-size: 12pt;
     color: palette(window-text);
+}
+
+/* GNOME Tour Centered Slide Typography */
+QLabel#TourSlideTitle {
+    font-family: "{{FONT_FAMILY}}", "Cantarell", sans-serif;
+    font-weight: bold;
+    font-size: 18pt;
+    color: palette(window-text);
+    padding: 4px 12px;
+}
+
+QLabel#TourSlideBody {
+    font-family: "{{FONT_FAMILY}}", "Cantarell", sans-serif;
+    font-size: 11pt;
+    color: palette(window-text);
+    padding: 4px 12px;
+}
+
+QLabel#PageTitle {
+    font-family: "{{FONT_FAMILY}}", "Cantarell", sans-serif;
+    font-weight: bold;
+    font-size: 16pt;
+    color: palette(window-text);
+    padding: 2px 0px;
+}
+
+QLabel#PageSubtitle {
+    font-family: "{{FONT_FAMILY}}", "Cantarell", sans-serif;
+    font-size: 10pt;
+    color: palette(window-text);
+    padding: 2px 0px;
 }
 
 QLabel#EditionBadge {

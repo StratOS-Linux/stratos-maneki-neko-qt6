@@ -323,13 +323,98 @@ Implemented in `src/ui/navigation_filter.py` (~60 lines) via an application-wide
 - **`Escape` / `Backspace`**: Go back one page or close the current dialog.
 - **`Ctrl+T`**: Cycle through `System (qt6ct)` → `tokyonight-dark` → `tokyonight-light` → `gruvbox-dark` → `gruvbox-light`.
 
-### 4.4 Edition-Aware "Change Default Settings" (`defaults_manager.py`)
-- **MIME Type Defaults (All Editions):** Replaces the external terminal `mimeopen` scripts ([`setDefaultTextEditor.sh`](file:///home/aadi/stratOS-maneki-neko/src/scripts/mimeopenScripts/setDefaultTextEditor.sh)) with native `QComboBox` dropdowns populated from installed `.desktop` entries, applying changes instantly via `xdg-mime default <app>.desktop <mimetype>`.
-- **Edition-Specific System & Theme Actions:**
-  - **GNOME:** Buttons for *Open GNOME Settings* (`gnome-control-center`) and *Open GNOME Tweaks* (`gnome-tweaks`).
-  - **Hyprland:** Buttons for *Edit Hyprland Config* (`~/.config/hypr/hyprland.conf`), *Qt6 Theme Settings* (`qt6ct`), and *GTK Theme Settings* (`nwg-look`).
-  - **Niri:** Buttons for *Edit Niri Config* (`~/.config/niri/config.kdl`), *Qt6 Theme Settings* (`qt6ct`), and *GTK Theme Settings* (`nwg-look`).
-  - **SwayFX:** Buttons for *Edit SwayFX Config* (`~/.config/sway/config`), *Qt6 Theme Settings* (`qt6ct`), and *GTK Theme Settings* (`nwg-look`).
+### 4.4 Unified `xdg-mime` Default Applications Engine (`src/core/defaults_manager.py`) & Adaptive UI
+
+Because GNOME 47+ merged `default-apps` into a non-CLI-addressable subpage of `gnome-control-center applications`—and because GNOME Settings lacks options for **Default Text Editor**, **Default PDF Viewer**, and **Default Office Suite**—Maneki Neko uses a **single shared `xdg-mime` / `mimeapps.list` backend** (`src/core/defaults_manager.py`) that powers both the GNOME Edition and Window Manager Editions (`Hyprland`, `Niri`, `SwayFX`).
+
+```mermaid
+flowchart LR
+    subgraph Scanner["1. Multi-Source .desktop Scanner (defaults_manager.py)"]
+        SysDir["/usr/share/applications\n/usr/local/share/applications"]
+        UserDir["~/.local/share/applications"]
+        FpSys["/var/lib/flatpak/exports/share/applications"]
+        FpUser["~/.local/share/flatpak/exports/share/applications"]
+        BedrockDir["/bedrock/cross/applications"]
+    end
+
+    subgraph Parser["2. Metadata, Source & Favicon Extractor"]
+        Entry["DesktopAppEntry\n• desktop_id ('firefox.desktop')\n• name ('Mozilla Firefox')\n• source_badge ('Pacman', 'Flatpak (System)', 'Flatpak (User)', 'APT (Ubuntu)')\n• icon (Resolved QIcon / Favicon)\n• mime_types (set[str])"]
+    end
+
+    subgraph Applicator["3. XDG MIME Persistence"]
+        MimeApps["~/.config/mimeapps.list\n& xdg-mime default <id> <mime>"]
+    end
+
+    subgraph UI["4. Edition-Specific UI/UX"]
+        GnomeUI["GNOME Edition UX:\nAdwActionRow per category with live Favicon,\n'App • Source' subtitle, Icon+Badge QComboBox,\n+ 'Open GNOME Settings to change default apps'"]
+        WMUI["Window Manager Edition UX:\nKeyboard-driven (WASD / A-D cycle or popup)\nDefault App rows with Favicon & Source Pill"]
+    end
+
+    Scanner --> Parser
+    Parser --> UI
+    UI --> Applicator
+```
+
+#### 1. Shared Backend: `.desktop` Scanning Across Native, Flatpak & Bedrock Strata
+`DefaultsManager` scans the following directories in priority order, deduplicating by canonical `desktop_id` (while keeping separate entries when both a native and a Flatpak version of the same app are installed, e.g. `firefox.desktop` vs `org.mozilla.firefox.desktop`):
+1. **`/usr/share/applications`** — System packages installed via `pacman`.
+2. **`/var/lib/flatpak/exports/share/applications`** — System-wide Flatpak applications (`--system`).
+3. **`~/.local/share/flatpak/exports/share/applications`** — User-space Flatpak applications (`--user`).
+4. **`/bedrock/cross/applications`** — Cross-stratum applications exported by Bedrock Linux (e.g. `apt` packages from an Ubuntu stratum or `dnf` packages from a Fedora stratum).
+5. **`/usr/local/share/applications`** & **`~/.local/share/applications`** — User/script-installed applications (e.g. StratVIM, custom AppImages, local builds).
+
+*(Ignores entries with `NoDisplay=true` or `Hidden=true` unless they are already the active default handler.)*
+
+#### 2. Detecting Installed Source (Package Manager Badge)
+For every discovered `.desktop` file, `DefaultsManager` determines its **Installed Source (`source_badge`)** without spawning slow per-file subprocesses:
+- **Flatpak (System):** Path is inside `/var/lib/flatpak/...` (or entry has `X-Flatpak=` and resides in system exports) → Badge: **`Flatpak (System)`**
+- **Flatpak (User):** Path is inside `~/.local/share/flatpak/...` → Badge: **`Flatpak (User)`**
+- **Bedrock Linux Stratum:** Path is inside `/bedrock/cross/applications` or symlink target / `Exec=` references `/bedrock/strata/<stratum>/...` or `strat <stratum>`:
+  - `arch` stratum → **`Pacman`**
+  - `ubuntu` / `debian` stratum → **`APT (Ubuntu)`**
+  - `fedora` stratum → **`DNF (Fedora)`**
+  - Other `<stratum>` → **`Stratum (<stratum>)`**
+- **Native `/usr/share/applications`:** Defaults to **`Pacman`** (with optional one-shot batch `pacman -Qo` verification if needed).
+- **User / Local (`~/.local/share/applications` or `/usr/local/share/applications`):** Badge: **`User / Script`**.
+
+#### 3. Resolving the Program Favicon (`QIcon`)
+Each `DesktopAppEntry` resolves its `Icon=` key into a crisp `QtGui.QIcon` using a 4-tier lookup:
+1. **Bundled StratOS High-DPI App Icons:** Checks `assets/icons/app_icons/` (`resolve_asset`) for known apps (`firefox`, `librewolf`, `brave`, `chromium`, `vscodium`, `stratvim`, `stratmacs`, `libreoffice`, `onlyoffice`, `evince`, `atril`, `vlc`, `mpv`, `obsidian`, etc.).
+2. **Flatpak & Bedrock Exported Icon Themes:** Searches:
+   - `/var/lib/flatpak/exports/share/icons/hicolor/{scalable,128x128,64x64,48x48}/apps/<Icon>.{svg,png}`
+   - `~/.local/share/flatpak/exports/share/icons/hicolor/{scalable,128x128,64x64,48x48}/apps/<Icon>.{svg,png}`
+   - `/bedrock/cross/icons/...` and `/usr/share/pixmaps/<Icon>.{svg,png}`
+3. **Absolute Path:** If `Icon=` is an absolute file path (`/.../icon.png`), loads it directly.
+4. **System Icon Theme Fallback:** Calls `QtGui.QIcon.fromTheme(icon_name)` with a fallback generic application icon so every item in the GUI always displays a clean favicon.
+
+#### 4. Supported Default Application Categories & MIME Type Groups
+
+| Category ID | Display Label | Primary & Associated MIME Types Updated via `xdg-mime` / `mimeapps.list` |
+| :--- | :--- | :--- |
+| **`browser`** | **Web Browser** | `x-scheme-handler/http`, `x-scheme-handler/https`, `text/html`, `application/xhtml+xml` |
+| **`editor`** | **Text & Code Editor** | `text/plain`, `text/markdown`, `text/x-makefile`, `text/x-python`, `text/x-shellscript`, `application/json` |
+| **`pdf`** | **PDF Document Viewer** | `application/pdf` |
+| **`office_writer`** | **Office Word Processor** | `application/vnd.oasis.opendocument.text`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `application/rtf` |
+| **`office_calc`** | **Office Spreadsheets** | `application/vnd.oasis.opendocument.spreadsheet`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `text/csv` |
+| **`office_impress`** | **Office Presentations** | `application/vnd.oasis.opendocument.presentation`, `application/vnd.openxmlformats-officedocument.presentationml.presentation` |
+| **`image`** | **Image Viewer** | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml` |
+| **`media`** | **Video & Media Player** | `video/mp4`, `video/x-matroska`, `video/webm`, `audio/mpeg`, `audio/flac`, `audio/ogg` |
+
+*(Note: The three Office categories can be unified under a single **"Office Suite"** selector when an all-in-one suite like LibreOffice or OnlyOffice is chosen, or expanded individually if the user prefers separate handlers.)*
+
+#### 5. Adaptive UI/UX Presentation (Same Backend, Tailored Frontend)
+
+- **GNOME Edition UX (`ui_mode == "gnome"`):**
+  - Inside the **Default Applications** `AdwPreferencesGroup` on the Setup slide:
+    - Renders an `AdwActionRow` for each category (*Web Browser*, *Text Editor*, *PDF Viewer*, *Office Suite*, *Image Viewer*, *Media Player*).
+    - **Leading Icon:** Dynamically displays the **favicon** of the currently active default application for that category.
+    - **Row Title & Subtitle:** Title shows the category (`"Default Web Browser"`); Subtitle shows the active app name and its package source badge (`"Mozilla Firefox • Pacman"` or `"LibreWolf • Flatpak (System)"`).
+    - **Trailing Dropdown (`QComboBox`):** Lists all discovered compatible applications, each with its **favicon** (`addItem(entry.icon, f"{entry.name} ({entry.source_badge})", userData=entry.desktop_id)`). Selecting a new app immediately updates `~/.config/mimeapps.list` + `xdg-mime`, updates the row's leading favicon and subtitle, and logs the change.
+    - **Secondary GNOME Settings Row:** At the bottom of the group, includes a companion row with button **"Open GNOME Settings to change default apps"** (`gnome-control-center applications`) for users who also want to inspect GNOME's built-in permissions/handlers page.
+- **Window Manager Editions UX (`ui_mode == "wm"` — Hyprland, Niri, SwayFX):**
+  - Uses the exact same `DefaultsManager` backend and `AdwActionRow` cards, enhanced for **100% keyboard-driven `WASD` + Arrow navigation**:
+    - Focusing a Default Application row (`W`/`S` or `↑`/`↓`) and pressing **`A` / `D` (`←` / `→`)** cycles through the discovered compatible apps for that category (updating the favicon, program name, and `[Pacman]` / `[Flatpak]` source badge live), or pressing `Space` / `Enter` opens the selector popup!
+    - Also includes edition-specific quick actions (*Edit Hyprland / Niri / SwayFX Config*, *Launch `qt6ct`*, *Launch `nwg-look`*).
 
 ---
 

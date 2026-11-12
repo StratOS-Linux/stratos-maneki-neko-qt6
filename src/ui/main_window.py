@@ -1,4 +1,4 @@
-"""Single-window QMainWindow shell hosting HeaderBar, QStackedWidget pages, and TerminalDrawer."""
+"""Single-window QMainWindow shell supporting GNOME Tour Carousel UX & Tiling WM Stacked UX."""
 
 from __future__ import annotations
 
@@ -7,14 +7,43 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from src.core.paths import resolve_asset
 from src.core.runner import TaskRunner
 from src.core.theme_manager import ThemeManager
-from src.ui.components import HeaderBar, RescueBanner, TerminalDrawer
+from src.ui.components import (
+    AdwCarouselWidget,
+    HeaderBar,
+    RescueBanner,
+    TerminalDrawer,
+)
 from src.ui.dialogs import CreditsDialog
 from src.ui.navigation_filter import NavigationFilter
-from src.ui.pages import OverviewPage, PackagesPage, SetupPage, WelcomePage
+from src.ui.pages import (
+    GnomeTourSlide,
+    OverviewPage,
+    PackagesPage,
+    SetupPage,
+    WelcomePage,
+    build_gnome_tour_slides,
+)
+
+GNOME_TOUR_STEPS: tuple[str, ...] = (
+    "Welcome",
+    "Multi-Strata",
+    "Package Tooling",
+    "Desktop",
+    "Development",
+    "System Setup",
+    "Software",
+)
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    """Main wizard window for StratOS Maneki Neko (PyQt6)."""
+    """Main window for StratOS Maneki Neko (PyQt6).
+
+    - In GNOME mode (`ui_mode == "gnome"`): Renders a 7-slide animated `AdwCarouselWidget`
+      with `CarouselIndicatorDots` in the `HeaderBar`, floating circular `<` and `>` buttons,
+      and no bottom `FooterBar` (replicating GNOME Tour).
+    - In Window Manager mode (`ui_mode == "wm"`): Renders the 4-step `QStackedWidget`
+      with `HeaderStepButton` pills and keyboard-hint `FooterBar`.
+    """
 
     def __init__(
         self,
@@ -25,15 +54,18 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self.theme_manager = theme_manager
         self.dry_run = dry_run
+        self._is_gnome_carousel = self.theme_manager.env_info.ui_mode == "gnome"
+
         self.runner = TaskRunner(
             env_info=self.theme_manager.env_info,
             dry_run=self.dry_run,
             parent=self,
         )
+        self.runner.queueCompleted.connect(self._on_runner_queue_completed)
 
         self._update_window_title()
-        self.resize(980, 680)
-        self.setMinimumSize(780, 540)
+        self.resize(960, 660)
+        self.setMinimumSize(760, 540)
 
         icon_path = resolve_asset("images:maneki_neko.png")
         if icon_path.is_file():
@@ -45,8 +77,15 @@ class MainWindow(QtWidgets.QMainWindow):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        # 1. Persistent HeaderBar
-        self.header_bar = HeaderBar(self.theme_manager, parent=central)
+        # 1. Persistent HeaderBar (7 indicator dots in GNOME mode, 4 step pills in WM mode)
+        header_steps = (
+            GNOME_TOUR_STEPS
+            if self._is_gnome_carousel
+            else ("1. Welcome", "2. Overview", "3. Setup", "4. Software")
+        )
+        self.header_bar = HeaderBar(
+            self.theme_manager, steps=header_steps, parent=central
+        )
         self.header_bar.stepClicked.connect(self.go_to_step)
         self.header_bar.creditsRequested.connect(self.show_credits_dialog)
         root_layout.addWidget(self.header_bar)
@@ -59,27 +98,53 @@ class MainWindow(QtWidgets.QMainWindow):
         self.theme_manager.qt6ctRescueTriggered.connect(self._on_rescue_triggered)
         root_layout.addWidget(self.rescue_banner)
 
-        # 3. Central QStackedWidget with the 4 Wizard Pages
-        self.stack = QtWidgets.QStackedWidget(central)
+        # 3. Main Content Area: AdwCarouselWidget (GNOME) or QStackedWidget (WM)
+        self.carousel: AdwCarouselWidget | None = None
+        self.stack: QtWidgets.QStackedWidget | None = None
+        self.tour_slides: list[GnomeTourSlide] = []
+        self.welcome_page: WelcomePage | None = None
+        self.overview_page: OverviewPage | None = None
 
-        self.welcome_page = WelcomePage(self.theme_manager, parent=self.stack)
-        self.welcome_page.openCreditsRequested.connect(self.show_credits_dialog)
-
-        self.overview_page = OverviewPage(parent=self.stack)
-        self.setup_page = SetupPage(
-            self.theme_manager, self.runner, parent=self.stack
+        self.setup_page = SetupPage(self.theme_manager, self.runner, parent=central)
+        self.packages_page = PackagesPage(
+            self.runner,
+            parent=central,
+            carousel_mode=self._is_gnome_carousel,
+            on_install_requested=self._trigger_package_install,
         )
-        self.packages_page = PackagesPage(self.runner, parent=self.stack)
         self.packages_page.selectionCountChanged.connect(self._update_footer_buttons)
 
-        self.stack.addWidget(self.welcome_page)   # index 0
-        self.stack.addWidget(self.overview_page)  # index 1
-        self.stack.addWidget(self.setup_page)     # index 2
-        self.stack.addWidget(self.packages_page)  # index 3
+        if self._is_gnome_carousel:
+            self.carousel = AdwCarouselWidget(parent=central)
+            self.tour_slides = build_gnome_tour_slides(
+                open_credits_callback=self.show_credits_dialog,
+                parent=self.carousel,
+            )
+            for slide in self.tour_slides:
+                self.carousel.add_slide(slide)
+            self.carousel.add_slide(self.setup_page)
+            self.carousel.add_slide(self.packages_page)
 
-        root_layout.addWidget(self.stack, stretch=1)
+            self.carousel.scrollPositionChanged.connect(
+                self.header_bar.set_scroll_position
+            )
+            self.carousel.currentIndexChanged.connect(
+                lambda _idx: self._update_footer_buttons()
+            )
+            root_layout.addWidget(self.carousel, stretch=1)
+        else:
+            self.stack = QtWidgets.QStackedWidget(central)
+            self.welcome_page = WelcomePage(self.theme_manager, parent=self.stack)
+            self.welcome_page.openCreditsRequested.connect(self.show_credits_dialog)
+            self.overview_page = OverviewPage(parent=self.stack)
 
-        # 4. Collapsible Embedded TerminalDrawer (above footer)
+            self.stack.addWidget(self.welcome_page)   # index 0
+            self.stack.addWidget(self.overview_page)  # index 1
+            self.stack.addWidget(self.setup_page)     # index 2
+            self.stack.addWidget(self.packages_page)  # index 3
+            root_layout.addWidget(self.stack, stretch=1)
+
+        # 4. Collapsible Embedded TerminalDrawer
         drawer_wrapper = QtWidgets.QWidget(central)
         drawer_layout = QtWidgets.QVBoxLayout(drawer_wrapper)
         drawer_layout.setContentsMargins(24, 4, 24, 8)
@@ -87,7 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
         drawer_layout.addWidget(self.terminal_drawer)
         root_layout.addWidget(drawer_wrapper)
 
-        # 5. Persistent Bottom FooterBar
+        # 5. Bottom FooterBar (Visible in WM mode; hidden in GNOME Tour Carousel mode)
         self.footer_bar = QtWidgets.QFrame(central)
         self.footer_bar.setObjectName("FooterBar")
         footer_layout = QtWidgets.QHBoxLayout(self.footer_bar)
@@ -118,6 +183,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.primary_btn.clicked.connect(self._on_primary_action)
         footer_layout.addWidget(self.primary_btn)
 
+        self.footer_bar.setVisible(not self._is_gnome_carousel)
         root_layout.addWidget(self.footer_bar)
 
         # 6. Install global WASD + Arrow key NavigationFilter
@@ -146,38 +212,62 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.rescue_banner.show()
 
+    def step_count(self) -> int:
+        if self.carousel is not None:
+            return self.carousel.count()
+        if self.stack is not None:
+            return self.stack.count()
+        return 0
+
+    def current_step_index(self) -> int:
+        if self.carousel is not None:
+            return self.carousel.currentIndex()
+        if self.stack is not None:
+            return self.stack.currentIndex()
+        return 0
+
     def go_to_step(self, index: int) -> None:
-        if not (0 <= index < self.stack.count()):
+        total = self.step_count()
+        if not (0 <= index < total):
             return
-        self.stack.setCurrentIndex(index)
-        self.header_bar.set_active_step(index)
+        if self.carousel is not None:
+            self.carousel.scroll_to(index, animated=True)
+        elif self.stack is not None:
+            self.stack.setCurrentIndex(index)
+            self.header_bar.set_active_step(index)
         self._update_footer_buttons()
 
     def go_next_step(self) -> None:
-        idx = self.stack.currentIndex()
-        if idx < self.stack.count() - 1:
+        idx = self.current_step_index()
+        if idx < self.step_count() - 1:
             self.go_to_step(idx + 1)
 
     def go_previous_step(self) -> None:
-        idx = self.stack.currentIndex()
+        idx = self.current_step_index()
         if idx > 0:
             self.go_to_step(idx - 1)
 
+    def _trigger_package_install(self) -> None:
+        self.packages_page.install_selected(
+            system_wide_flatpak=self.packages_page.install_flatpaks_system_wide
+        )
+
+    def _on_runner_queue_completed(self, _all_succeeded: bool) -> None:
+        self.setup_page.refresh_default_apps()
+
     def _on_primary_action(self) -> None:
-        idx = self.stack.currentIndex()
-        if idx < self.stack.count() - 1:
+        idx = self.current_step_index()
+        if idx < self.step_count() - 1:
             self.go_next_step()
         else:
-            # On Page 4 (Software), trigger installation of selected packages
-            self.packages_page.install_selected(
-                system_wide_flatpak=self.setup_page.install_flatpaks_system_wide
-            )
+            self._trigger_package_install()
 
     def _update_footer_buttons(self, *_args: object) -> None:
-        idx = self.stack.currentIndex()
+        idx = self.current_step_index()
+        total = self.step_count()
         self.back_btn.setEnabled(idx > 0)
 
-        if idx < self.stack.count() - 1:
+        if idx < total - 1:
             self.primary_btn.setText("Next Step →")
             self.primary_btn.setEnabled(True)
         else:
@@ -193,3 +283,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = CreditsDialog(self)
         dlg.exec()
 
+    def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
+        app = QtWidgets.QApplication.instance()
+        if app is not None and hasattr(self, "nav_filter"):
+            app.removeEventFilter(self.nav_filter)
+        super().closeEvent(event)

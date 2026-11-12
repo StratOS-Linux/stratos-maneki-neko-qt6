@@ -4,14 +4,20 @@ from __future__ import annotations
 
 from PyQt6 import QtCore, QtWidgets
 
-from src.core.paths import load_json_data, load_user_settings, save_user_settings
+from src.core.paths import (
+    load_json_data,
+    load_user_settings,
+    save_user_settings,
+    update_user_setting,
+)
 from src.core.runner import TaskRunner
 from src.ui.components.adw_card import AdwActionRow, AdwPreferencesGroup
 from src.ui.components.header_bar import HeaderStepButton
+from src.ui.components.toggle_switch import ToggleSwitch
 
 
 class PackagesPage(QtWidgets.QWidget):
-    """Screen 4: Curated software browser with search filter, category tabs, and inline source pills."""
+    """Screen 4: Curated software browser with search filter, category tabs, Flatpak scope toggle, and inline source pills."""
 
     selectionCountChanged = QtCore.pyqtSignal(int)
 
@@ -19,13 +25,21 @@ class PackagesPage(QtWidgets.QWidget):
         self,
         runner: TaskRunner,
         parent: QtWidgets.QWidget | None = None,
+        *,
+        carousel_mode: bool = False,
+        on_install_requested=None,
     ) -> None:
         super().__init__(parent)
         self.runner = runner
+        self._carousel_mode = carousel_mode
+        self._on_install_requested = on_install_requested
         self._catalog = load_json_data("packages.json")
         self._settings = load_user_settings()
         self._saved_sources: dict[str, str] = dict(
             self._settings.get("package_source_preferences", {})
+        )
+        self._install_flatpaks_system_wide: bool = bool(
+            self._settings.get("install_flatpaks_system_wide", True)
         )
 
         self._rows_by_id: dict[str, AdwActionRow] = {}
@@ -34,14 +48,16 @@ class PackagesPage(QtWidgets.QWidget):
         self._cat_buttons: dict[str, HeaderStepButton] = {}
         self._active_category: str = "all"
 
+        horiz_pad = 78 if self._carousel_mode else 32
+
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        # Top Filter Bar (Search + Category Pills + Select Defaults / Clear All)
+        # Top Filter Bar (Title + Search + Flatpak System-Wide Toggle + Reset/Clear)
         filter_frame = QtWidgets.QWidget(self)
         filter_layout = QtWidgets.QVBoxLayout(filter_frame)
-        filter_layout.setContentsMargins(32, 16, 32, 10)
+        filter_layout.setContentsMargins(horiz_pad, 16, horiz_pad, 10)
         filter_layout.setSpacing(10)
 
         top_row = QtWidgets.QHBoxLayout()
@@ -54,8 +70,10 @@ class PackagesPage(QtWidgets.QWidget):
         top_row.addStretch(1)
 
         self.search_entry = QtWidgets.QLineEdit(filter_frame)
-        self.search_entry.setPlaceholderText("Search applications (e.g. Firefox, VSCodium, StratVIM)...")
-        self.search_entry.setMinimumWidth(280)
+        self.search_entry.setPlaceholderText(
+            "Search applications (e.g. Firefox, VSCodium, StratVIM)..."
+        )
+        self.search_entry.setMinimumWidth(260)
         self.search_entry.textChanged.connect(self._apply_filters)
         top_row.addWidget(self.search_entry)
 
@@ -71,11 +89,11 @@ class PackagesPage(QtWidgets.QWidget):
 
         filter_layout.addLayout(top_row)
 
-        # Category Pill Strip
+        # Second row: Category Pill Strip + Install Flatpaks System-Wide Toggle
         cat_row = QtWidgets.QHBoxLayout()
         cat_row.setSpacing(6)
 
-        all_btn = self._create_category_pill("all", "All Categories", filter_frame)
+        all_btn = self._create_category_pill("all", "All", filter_frame)
         all_btn.setChecked(True)
         cat_row.addWidget(all_btn)
 
@@ -86,8 +104,27 @@ class PackagesPage(QtWidgets.QWidget):
             cat_row.addWidget(btn)
 
         cat_row.addStretch(1)
-        filter_layout.addLayout(cat_row)
 
+        # Install Flatpaks System-Wide Toggle right inside the Software Installer header
+        flatpak_lbl = QtWidgets.QLabel("Flatpaks System-Wide:", filter_frame)
+        flatpak_lbl.setObjectName("RowTitle")
+        flatpak_lbl.setToolTip(
+            "When enabled, Flatpak apps are installed system-wide (--system) instead of per-user (--user)"
+        )
+        cat_row.addWidget(flatpak_lbl)
+
+        self.flatpak_scope_switch = ToggleSwitch(
+            parent=filter_frame,
+            checked=self._install_flatpaks_system_wide,
+        )
+        self.flatpak_scope_switch.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.flatpak_scope_switch.setToolTip(
+            "Toggle between --system (ON) and --user (OFF) for Flatpak package installations"
+        )
+        self.flatpak_scope_switch.toggled.connect(self._on_flatpak_scope_toggled)
+        cat_row.addWidget(self.flatpak_scope_switch)
+
+        filter_layout.addLayout(cat_row)
         outer.addWidget(filter_frame)
 
         # Scrollable Package Groups
@@ -95,7 +132,7 @@ class PackagesPage(QtWidgets.QWidget):
         self.scroll.setWidgetResizable(True)
         self.scroll_content = QtWidgets.QWidget()
         self.scroll_layout = QtWidgets.QVBoxLayout(self.scroll_content)
-        self.scroll_layout.setContentsMargins(32, 8, 32, 24)
+        self.scroll_layout.setContentsMargins(horiz_pad, 8, horiz_pad, 20)
         self.scroll_layout.setSpacing(18)
 
         self._populate_catalog()
@@ -103,6 +140,35 @@ class PackagesPage(QtWidgets.QWidget):
 
         self.scroll.setWidget(self.scroll_content)
         outer.addWidget(self.scroll, stretch=1)
+
+        # In GNOME Tour Carousel mode (no global FooterBar), show a centered Install CTA bar at the bottom
+        self.inline_install_btn: QtWidgets.QPushButton | None = None
+        if self._carousel_mode:
+            cta_bar = QtWidgets.QWidget(self)
+            cta_layout = QtWidgets.QHBoxLayout(cta_bar)
+            cta_layout.setContentsMargins(horiz_pad, 8, horiz_pad, 16)
+            cta_layout.addStretch(1)
+
+            self.inline_install_btn = QtWidgets.QPushButton(cta_bar)
+            self.inline_install_btn.setObjectName("PrimaryButton")
+            self.inline_install_btn.setMinimumWidth(220)
+            self.inline_install_btn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            if self._on_install_requested is not None:
+                self.inline_install_btn.clicked.connect(self._on_install_requested)
+            else:
+                self.inline_install_btn.clicked.connect(lambda: self.install_selected())
+            cta_layout.addWidget(self.inline_install_btn)
+            cta_layout.addStretch(1)
+            outer.addWidget(cta_bar)
+            self._sync_inline_install_btn()
+
+    @property
+    def install_flatpaks_system_wide(self) -> bool:
+        return self._install_flatpaks_system_wide
+
+    def _on_flatpak_scope_toggled(self, checked: bool) -> None:
+        self._install_flatpaks_system_wide = checked
+        update_user_setting("install_flatpaks_system_wide", checked)
 
     def _create_category_pill(
         self, cat_id: str, label: str, parent: QtWidgets.QWidget
@@ -197,7 +263,19 @@ class PackagesPage(QtWidgets.QWidget):
                     any_visible = True
             group.setVisible(any_visible)
 
+    def _sync_inline_install_btn(self) -> None:
+        if self.inline_install_btn is None:
+            return
+        count = self.selected_count()
+        if count > 0:
+            self.inline_install_btn.setText(f"Install Selected ({count})")
+            self.inline_install_btn.setEnabled(True)
+        else:
+            self.inline_install_btn.setText("No Packages Selected")
+            self.inline_install_btn.setEnabled(False)
+
     def _on_row_toggled(self, _checked: bool) -> None:
+        self._sync_inline_install_btn()
         self.selectionCountChanged.emit(self.selected_count())
 
     def _on_package_source_changed(self, pkg_id: str, source: str) -> None:
@@ -228,6 +306,7 @@ class PackagesPage(QtWidgets.QWidget):
     def clear_all_selections(self) -> None:
         for row in self._rows_by_id.values():
             row.set_checked(False, immediate=True)
+        self._sync_inline_install_btn()
         self.selectionCountChanged.emit(0)
 
     def reset_to_defaults(self) -> None:
@@ -237,15 +316,21 @@ class PackagesPage(QtWidgets.QWidget):
             default_src = pkg.get("default_source")
             if default_src:
                 row.set_selected_source(default_src)
+        self._sync_inline_install_btn()
         self.selectionCountChanged.emit(self.selected_count())
 
-    def install_selected(self, system_wide_flatpak: bool = True) -> int:
+    def install_selected(self, system_wide_flatpak: bool | None = None) -> int:
         """Build coalesced tasks for all checked packages and start the TaskRunner."""
         selections = self.get_selected_packages()
         if not selections:
             return 0
+        sys_wide = (
+            self._install_flatpaks_system_wide
+            if system_wide_flatpak is None
+            else system_wide_flatpak
+        )
         tasks = TaskRunner.build_package_tasks(
-            selections, system_wide_flatpak=system_wide_flatpak
+            selections, system_wide_flatpak=sys_wide
         )
         self.runner.enqueue_many(tasks)
         self.runner.start()

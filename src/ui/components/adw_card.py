@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from src.core.paths import resolve_asset
 from src.ui.components.header_bar import HeaderStepButton
 from src.ui.components.toggle_switch import ToggleSwitch
+
+if TYPE_CHECKING:
+    from src.core.defaults_manager import (
+        DefaultCategorySpec,
+        DefaultsManager,
+        DesktopAppEntry,
+    )
 
 SOURCE_LABELS: dict[str, str] = {
     "pacman": "Pacman",
@@ -188,6 +195,17 @@ class AdwActionRow(QtWidgets.QFrame):
             )
             self.icon_label.setPixmap(scaled)
 
+    def set_icon_pixmap(self, pixmap: QtGui.QPixmap, size: int = 32) -> None:
+        if self.icon_label is None or pixmap.isNull():
+            return
+        scaled = pixmap.scaled(
+            size,
+            size,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        self.icon_label.setPixmap(scaled)
+
     def set_subtitle(self, subtitle: str) -> None:
         self._subtitle_text = subtitle
         self.subtitle_label.setText(subtitle)
@@ -305,3 +323,151 @@ class AdwPreferencesGroup(QtWidgets.QWidget):
     @property
     def rows(self) -> list[AdwActionRow]:
         return list(self._rows)
+
+
+class DefaultAppRow(AdwActionRow):
+    """Adaptive row for selecting a default application per MIME category.
+
+    Displays the active application's favicon (`QPixmap`), category title,
+    active program name + package source badge (`<Name> • <Source>`), and a
+    trailing `QComboBox` populated with all compatible `.desktop` applications
+    discovered across native, Flatpak, and Bedrock Linux strata directories.
+    Supports `WASD` (`A`/`D` and Left/Right arrow keys) via `cycle_source(delta)`.
+    """
+
+    defaultAppChanged = QtCore.pyqtSignal(str, str)  # (category_id, desktop_id)
+
+    def __init__(
+        self,
+        spec: DefaultCategorySpec,
+        defaults_manager: DefaultsManager,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(
+            title=spec.title,
+            subtitle=spec.description,
+            icon_path=spec.fallback_icon,
+            icon_size=32,
+            row_id=f"default_app_{spec.id}",
+            parent=parent,
+        )
+        self.spec = spec
+        self.defaults_manager = defaults_manager
+        self._candidates: list[DesktopAppEntry] = []
+
+        self.app_combo = QtWidgets.QComboBox(self)
+        self.app_combo.setObjectName("DefaultAppCombo")
+        self.app_combo.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.app_combo.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.app_combo.setIconSize(QtCore.QSize(18, 18))
+        self.app_combo.setMinimumWidth(240)
+        self.app_combo.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents
+        )
+
+        root_layout = self.layout()
+        if isinstance(root_layout, QtWidgets.QHBoxLayout):
+            root_layout.addWidget(self.app_combo)
+
+        self.refresh_candidates()
+        self.app_combo.currentIndexChanged.connect(self._on_combo_index_changed)
+
+    @property
+    def candidates(self) -> list[DesktopAppEntry]:
+        return list(self._candidates)
+
+    def refresh_candidates(self) -> None:
+        """Populate the combo box with compatible `.desktop` apps and select the active default."""
+        self.app_combo.blockSignals(True)
+        self.app_combo.clear()
+
+        self._candidates = self.defaults_manager.get_candidates(self.spec)
+        current_entry = self.defaults_manager.get_current_default(
+            self.spec, self._candidates
+        )
+
+        if not self._candidates:
+            self.app_combo.addItem("No compatible apps installed", userData="")
+            self.app_combo.setEnabled(False)
+            self.set_icon(self.spec.fallback_icon, 32)
+            self.set_subtitle(f"No installed handler found • {self.spec.description}")
+            self.app_combo.blockSignals(False)
+            return
+
+        self.app_combo.setEnabled(True)
+        selected_idx = 0
+        for idx, entry in enumerate(self._candidates):
+            qicon = entry.resolve_qicon(fallback_asset=self.spec.fallback_icon)
+            self.app_combo.addItem(
+                qicon,
+                entry.display_label,
+                userData=entry.desktop_id,
+            )
+            self.app_combo.setItemData(
+                idx,
+                f"{entry.name} ({entry.source_badge})\nDesktop ID: {entry.desktop_id}\nPath: {entry.desktop_path}",
+                QtCore.Qt.ItemDataRole.ToolTipRole,
+            )
+            if current_entry is not None and entry.desktop_id == current_entry.desktop_id:
+                selected_idx = idx
+
+        self.app_combo.setCurrentIndex(selected_idx)
+        self.app_combo.blockSignals(False)
+
+        active = self._candidates[selected_idx]
+        self._apply_entry_visuals(active)
+
+    def _apply_entry_visuals(self, entry: DesktopAppEntry) -> None:
+        pix = entry.resolve_pixmap(size=32, fallback_asset=self.spec.fallback_icon)
+        self.set_icon_pixmap(pix, size=32)
+        self.set_subtitle(entry.subtitle_summary)
+
+    def _on_combo_index_changed(self, index: int) -> None:
+        if index < 0 or index >= len(self._candidates):
+            return
+        entry = self._candidates[index]
+        self._apply_entry_visuals(entry)
+        self.defaults_manager.set_default_for_category(self.spec, entry.desktop_id)
+        self.sourceChanged.emit(entry.desktop_id)
+        self.defaultAppChanged.emit(self.spec.id, entry.desktop_id)
+
+    def selected_desktop_id(self) -> str | None:
+        idx = self.app_combo.currentIndex()
+        if 0 <= idx < len(self._candidates):
+            return self._candidates[idx].desktop_id
+        return None
+
+    def selected_entry(self) -> DesktopAppEntry | None:
+        idx = self.app_combo.currentIndex()
+        if 0 <= idx < len(self._candidates):
+            return self._candidates[idx]
+        return None
+
+    def cycle_source(self, delta: int) -> str | None:
+        """Support A/D and Left/Right arrow keys to cycle through installed candidate apps."""
+        count = len(self._candidates)
+        if count <= 1 or not self.app_combo.isEnabled():
+            return self.selected_desktop_id()
+        cur = max(0, self.app_combo.currentIndex())
+        nxt = (cur + delta) % count
+        self.app_combo.setCurrentIndex(nxt)
+        return self.selected_desktop_id()
+
+    def trigger_primary(self) -> None:
+        """Open the candidate dropdown when Space/Enter or row click is used."""
+        if not self.isEnabled() or not self.app_combo.isEnabled():
+            return
+        self.app_combo.showPopup()
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
+        if event is not None and event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
+            child = self.childAt(event.position().toPoint())
+            if child is self.app_combo or self.app_combo.isAncestorOf(child):
+                super().mousePressEvent(event)
+                return
+            self.trigger_primary()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+

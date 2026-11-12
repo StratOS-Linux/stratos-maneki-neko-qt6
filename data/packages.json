@@ -46,7 +46,11 @@
       "sources": {
         "aur": "librewolf-bin",
         "flatpak": "io.gitlab.librewolf-community"
-      }
+      },
+      "desktop_aliases": [
+        "librewolf",
+        "io.gitlab.librewolf-community"
+      ]
     },
     {
       "id": "firefox",
@@ -66,7 +70,11 @@
       "sources": {
         "pacman": "firefox",
         "flatpak": "org.mozilla.Firefox"
-      }
+      },
+      "desktop_aliases": [
+        "firefox",
+        "org.mozilla.firefox"
+      ]
     },
     {
       "id": "brave",
@@ -86,7 +94,12 @@
       "sources": {
         "aur": "brave-bin",
         "flatpak": "com.brave.Browser"
-      }
+      },
+      "desktop_aliases": [
+        "brave",
+        "brave-browser",
+        "com.brave.browser"
+      ]
     },
     {
       "id": "chromium",
@@ -106,7 +119,11 @@
       "sources": {
         "pacman": "chromium",
         "flatpak": "org.chromium.Chromium"
-      }
+      },
+      "desktop_aliases": [
+        "chromium",
+        "org.chromium.chromium"
+      ]
     },
     {
       "id": "vlc",
@@ -127,7 +144,11 @@
         "pacman": "vlc",
         "aur": "vlc-git",
         "flatpak": "org.videolan.VLC"
-      }
+      },
+      "desktop_aliases": [
+        "vlc",
+        "org.videolan.vlc"
+      ]
     },
     {
       "id": "mpv",
@@ -148,7 +169,11 @@
         "pacman": "mpv",
         "aur": "mpv-full",
         "flatpak": "io.mpv.Mpv"
-      }
+      },
+      "desktop_aliases": [
+        "mpv",
+        "io.mpv.mpv"
+      ]
     },
     {
       "id": "onlyoffice",
@@ -167,7 +192,12 @@
       "default_source": "flatpak",
       "sources": {
         "flatpak": "org.onlyoffice.desktopeditors"
-      }
+      },
+      "desktop_aliases": [
+        "onlyoffice",
+        "onlyoffice-desktopeditors",
+        "org.onlyoffice.desktopeditors"
+      ]
     },
     {
       "id": "libreoffice",
@@ -187,7 +217,14 @@
       "sources": {
         "pacman": "libreoffice-fresh",
         "flatpak": "org.libreoffice.LibreOffice"
-      }
+      },
+      "desktop_aliases": [
+        "libreoffice",
+        "libreoffice-writer",
+        "libreoffice-calc",
+        "libreoffice-impress",
+        "org.libreoffice.libreoffice"
+      ]
     },
     {
       "id": "stratmacs",
@@ -206,7 +243,11 @@
       "default_source": "script",
       "sources": {
         "script": "stratmacs_installer"
-      }
+      },
+      "desktop_aliases": [
+        "emacs",
+        "stratmacs"
+      ]
     },
     {
       "id": "stratvim",
@@ -225,7 +266,12 @@
       "default_source": "script",
       "sources": {
         "script": "stratvim_installer"
-      }
+      },
+      "desktop_aliases": [
+        "nvim",
+        "neovim",
+        "stratvim"
+      ]
     },
     {
       "id": "vscodium",
@@ -245,7 +291,12 @@
       "sources": {
         "aur": "vscodium-bin",
         "flatpak": "com.vscodium.codium"
-      }
+      },
+      "desktop_aliases": [
+        "vscodium",
+        "codium",
+        "com.vscodium.codium"
+      ]
     },
     {
       "id": "evince",
@@ -264,7 +315,11 @@
       "default_source": "pacman",
       "sources": {
         "pacman": "evince"
-      }
+      },
+      "desktop_aliases": [
+        "evince",
+        "org.gnome.evince"
+      ]
     },
     {
       "id": "atril",
@@ -283,7 +338,10 @@
       "default_source": "pacman",
       "sources": {
         "pacman": "atril"
-      }
+      },
+      "desktop_aliases": [
+        "atril"
+      ]
     },
     {
       "id": "github",
@@ -302,7 +360,11 @@
       "default_source": "aur",
       "sources": {
         "aur": "github-desktop-bin"
-      }
+      },
+      "desktop_aliases": [
+        "github-desktop",
+        "io.github.shiftey.desktop"
+      ]
     },
     {
       "id": "obsidian",
@@ -322,7 +384,11 @@
       "sources": {
         "pacman": "obsidian",
         "aur": "obsidian-bin"
-      }
+      },
+      "desktop_aliases": [
+        "obsidian",
+        "md.obsidian.obsidian"
+      ]
     },
     {
       "id": "gsconnect",

@@ -1,34 +1,35 @@
-"""Page 3: System Setup, Strata Management & Customization screen."""
+"""Page 3: System Setup, Strata Management, Default Apps & Customization screen."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PyQt6 import QtWidgets
 
-from src.core.paths import load_user_settings, update_user_setting
+from src.core.defaults_manager import DEFAULT_APP_CATEGORIES, DefaultsManager
+from src.core.paths import load_user_settings
 from src.core.runner import TaskCommand, TaskRunner
 from src.core.theme_manager import ThemeManager
-from src.ui.components.adw_card import AdwActionRow, AdwPreferencesGroup
+from src.ui.components.adw_card import AdwActionRow, AdwPreferencesGroup, DefaultAppRow
 
 
 class SetupPage(QtWidgets.QWidget):
-    """Screen 3: System maintenance, Bedrock Linux strata management, and desktop tools."""
-
-    flatpakScopeChanged = QtWidgets.pyqtSignal if hasattr(QtWidgets, "pyqtSignal") else None
+    """Screen 3: System maintenance, Bedrock Linux strata management, Default Apps, and desktop tools."""
 
     def __init__(
         self,
         theme_manager: ThemeManager,
         runner: TaskRunner,
+        defaults_manager: DefaultsManager | None = None,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.theme_manager = theme_manager
         self.runner = runner
-
-        settings = load_user_settings()
-        self._install_flatpaks_system_wide: bool = bool(
-            settings.get("install_flatpaks_system_wide", True)
+        self.defaults_manager = defaults_manager or DefaultsManager(
+            dry_run=self.runner.dry_run
         )
+        self.default_app_rows: dict[str, DefaultAppRow] = {}
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -37,7 +38,8 @@ class SetupPage(QtWidgets.QWidget):
         scroll.setWidgetResizable(True)
         content = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(content)
-        layout.setContentsMargins(32, 20, 32, 24)
+        horiz_pad = 78 if self.theme_manager.env_info.ui_mode == "gnome" else 32
+        layout.setContentsMargins(horiz_pad, 20, horiz_pad, 24)
         layout.setSpacing(18)
 
         # Page Header
@@ -47,7 +49,7 @@ class SetupPage(QtWidgets.QWidget):
 
         subtitle = QtWidgets.QLabel(
             "Run initial system updates, fetch or remove Bedrock Linux distribution strata, "
-            "and configure package installation preferences.",
+            "and configure your default applications and desktop preferences.",
             content,
         )
         subtitle.setObjectName("PageSubtitle")
@@ -126,7 +128,6 @@ class SetupPage(QtWidgets.QWidget):
                 action_text="Execute",
                 parent=strata_group,
             )
-            # Relabel pill buttons to Fetch / Remove
             if s_row.source_pill_bar is not None:
                 for src_key, btn in s_row.source_pill_bar._buttons.items():
                     btn.setText("Fetch" if src_key == "fetch" else "Remove")
@@ -139,10 +140,43 @@ class SetupPage(QtWidgets.QWidget):
 
         layout.addWidget(strata_group)
 
-        # 3. Desktop & Theme Configuration Group
+        # 3. Default Applications Group (Browser, Editor, PDF, Office, Image, Media)
+        defaults_group = AdwPreferencesGroup(
+            title="Default Applications",
+            description=(
+                "Select your preferred Web Browser, Text & Code Editor, PDF Viewer, "
+                "Office Suite, Image Viewer, and Media Player across Pacman, Flatpak, "
+                "and Bedrock Linux strata. (Use A / D or ← / → to cycle options.)"
+            ),
+            parent=content,
+        )
+
+        for spec in DEFAULT_APP_CATEGORIES:
+            app_row = DefaultAppRow(
+                spec=spec,
+                defaults_manager=self.defaults_manager,
+                parent=defaults_group,
+            )
+            defaults_group.add_row(app_row)
+            self.default_app_rows[spec.id] = app_row
+
+        if self.theme_manager.env_info.ui_mode == "gnome":
+            gnome_settings_row = AdwActionRow(
+                title="GNOME Default Applications Settings",
+                subtitle="Open GNOME Settings to manage additional application permissions and link handlers",
+                icon_path="images:desktop.png",
+                action_text="Open GNOME Settings to change default apps",
+                parent=defaults_group,
+            )
+            gnome_settings_row.activated.connect(self._run_open_gnome_applications_panel)
+            defaults_group.add_row(gnome_settings_row)
+
+        layout.addWidget(defaults_group)
+
+        # 4. Desktop & Theme Configuration Group
         desktop_group = AdwPreferencesGroup(
             title="Desktop & Appearance Configuration",
-            description="Configure system-wide Qt6 theming and desktop preferences.",
+            description="Configure system-wide Qt6 theming and desktop shell preferences.",
             parent=content,
         )
 
@@ -166,18 +200,29 @@ class SetupPage(QtWidgets.QWidget):
             )
             tweaks_row.activated.connect(self._run_open_gnome_tweaks)
             desktop_group.add_row(tweaks_row)
+        else:
+            wm_cfg_title, wm_cfg_path = self._resolve_wm_config_info()
+            wm_cfg_row = AdwActionRow(
+                title=wm_cfg_title,
+                subtitle=f"Open {wm_cfg_path} in your default text editor",
+                icon_path="images:desktop.png",
+                action_text="Edit Config",
+                parent=desktop_group,
+            )
+            wm_cfg_row.activated.connect(
+                lambda p=wm_cfg_path: self._run_edit_wm_config(p)
+            )
+            desktop_group.add_row(wm_cfg_row)
 
-        # Flatpak scope toggle
-        self.flatpak_scope_row = AdwActionRow(
-            title="Install Flatpaks System-Wide",
-            subtitle="When enabled, Flatpak packages install with --system instead of --user",
-            icon_path="images:flatpak.png",
-            has_toggle=True,
-            checked=self._install_flatpaks_system_wide,
-            parent=desktop_group,
-        )
-        self.flatpak_scope_row.toggled.connect(self._on_flatpak_scope_toggled)
-        desktop_group.add_row(self.flatpak_scope_row)
+            nwg_row = AdwActionRow(
+                title="Open GTK Theme Settings (nwg-look)",
+                subtitle="Configure GTK3/GTK4 themes, icons, and cursors for Wayland window managers",
+                icon_path="images:desktop.png",
+                action_text="Launch nwg-look",
+                parent=desktop_group,
+            )
+            nwg_row.activated.connect(self._run_open_nwg_look)
+            desktop_group.add_row(nwg_row)
 
         layout.addWidget(desktop_group)
         layout.addStretch(1)
@@ -185,13 +230,19 @@ class SetupPage(QtWidgets.QWidget):
         scroll.setWidget(content)
         outer.addWidget(scroll)
 
-    @property
-    def install_flatpaks_system_wide(self) -> bool:
-        return self._install_flatpaks_system_wide
+    def refresh_default_apps(self) -> None:
+        """Rescan `.desktop` directories and refresh all DefaultAppRow selectors."""
+        self.defaults_manager.scan_applications(force=True)
+        for row in self.default_app_rows.values():
+            row.refresh_candidates()
 
-    def _on_flatpak_scope_toggled(self, checked: bool) -> None:
-        self._install_flatpaks_system_wide = checked
-        update_user_setting("install_flatpaks_system_wide", checked)
+    def _resolve_wm_config_info(self) -> tuple[str, str]:
+        edition = self.theme_manager.env_info.edition.lower()
+        if edition == "niri":
+            return ("Edit Niri Window Manager Config", "~/.config/niri/config.kdl")
+        if edition in ("sway", "swayfx"):
+            return ("Edit Sway / SwayFX Window Manager Config", "~/.config/sway/config")
+        return ("Edit Hyprland Window Manager Config", "~/.config/hypr/hyprland.conf")
 
     def _enqueue_and_start(self, task: TaskCommand) -> None:
         self.runner.enqueue(task)
@@ -218,7 +269,9 @@ class SetupPage(QtWidgets.QWidget):
         )
 
     def _run_enable_flathub(self) -> None:
-        scope = "--system" if self._install_flatpaks_system_wide else "--user"
+        settings = load_user_settings()
+        system_wide = bool(settings.get("install_flatpaks_system_wide", True))
+        scope = "--system" if system_wide else "--user"
         self._enqueue_and_start(
             TaskCommand(
                 title=f"Enable Flathub Remote ({scope})",
@@ -256,6 +309,33 @@ class SetupPage(QtWidgets.QWidget):
                 )
             )
 
+    def _run_open_gnome_default_apps(self) -> None:
+        """Open the Default Applications page in GNOME Settings (gnome-control-center)."""
+        self._enqueue_and_start(
+            TaskCommand(
+                title="Open Default Applications in GNOME Settings",
+                program="bash",
+                args=[
+                    "-c",
+                    "gnome-control-center default-apps 2>/dev/null "
+                    "|| gnome-control-center system default-apps 2>/dev/null "
+                    "|| gnome-control-center applications",
+                ],
+                requires_root=False,
+            )
+        )
+
+    def _run_open_gnome_applications_panel(self) -> None:
+        """Open the Applications & File Associations page in GNOME Settings."""
+        self._enqueue_and_start(
+            TaskCommand(
+                title="Open Applications Panel in GNOME Settings",
+                program="gnome-control-center",
+                args=["applications"],
+                requires_root=False,
+            )
+        )
+
     def _run_open_qt6ct(self) -> None:
         self._enqueue_and_start(
             TaskCommand(
@@ -276,3 +356,23 @@ class SetupPage(QtWidgets.QWidget):
             )
         )
 
+    def _run_edit_wm_config(self, config_path: str) -> None:
+        expanded = str(Path(config_path).expanduser())
+        self._enqueue_and_start(
+            TaskCommand(
+                title=f"Edit Window Manager Config ({config_path})",
+                program="xdg-open",
+                args=[expanded],
+                requires_root=False,
+            )
+        )
+
+    def _run_open_nwg_look(self) -> None:
+        self._enqueue_and_start(
+            TaskCommand(
+                title="Launch GTK Theme Settings (nwg-look)",
+                program="nwg-look",
+                args=[],
+                requires_root=False,
+            )
+        )

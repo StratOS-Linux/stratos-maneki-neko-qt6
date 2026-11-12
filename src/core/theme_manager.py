@@ -168,7 +168,7 @@ class ThemeManager(QtCore.QObject):
         env_info: EnvironmentInfo,
         initial_theme_override: str | None = None,
     ) -> None:
-        super().__init__()
+        super().__init__(app)
         self._app = app
         self._env_info = env_info
 

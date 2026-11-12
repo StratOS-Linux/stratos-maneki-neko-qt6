@@ -10,6 +10,7 @@ from src.core.autostart import is_autostart_enabled, set_autostart_enabled
 from src.core.environment import WM_FONT_MODES
 from src.core.paths import resolve_asset
 from src.core.theme_manager import ThemeManager
+from src.ui.components.adw_carousel import CarouselIndicatorDots
 
 DEFAULT_STEPS: tuple[str, ...] = (
     "1. Welcome",
@@ -273,23 +274,28 @@ class HeaderBar(QtWidgets.QFrame):
         self.setObjectName("HeaderBar")
         self.theme_manager = theme_manager
         self._step_buttons: list[HeaderStepButton] = []
+        self.indicator_dots: CarouselIndicatorDots | None = None
         self._active_step: int = 0
+        self._step_count: int = len(steps)
         self._syncing_menu: bool = False
 
+        is_gnome = self.theme_manager.env_info.ui_mode == "gnome"
+
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(16, 8, 16, 8)
+        layout.setContentsMargins(16, 6 if is_gnome else 8, 16, 6 if is_gnome else 8)
         layout.setSpacing(12)
 
-        # Left: App icon + Title (Clean — edition & font details are logged to console)
+        # Left: App emblem icon (+ Title in WM mode; clean emblem-only in GNOME Tour mode)
         logo_path = resolve_asset("icons:maneki_neko.png")
         if logo_path.is_file():
             logo_label = QtWidgets.QLabel(self)
             pix = QtGui.QPixmap(str(logo_path))
             if not pix.isNull():
+                icon_px = 22 if is_gnome else 26
                 logo_label.setPixmap(
                     pix.scaled(
-                        26,
-                        26,
+                        icon_px,
+                        icon_px,
                         QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                         QtCore.Qt.TransformationMode.SmoothTransformation,
                     )
@@ -298,24 +304,33 @@ class HeaderBar(QtWidgets.QFrame):
 
         self.title_label = QtWidgets.QLabel("Maneki Neko", self)
         self.title_label.setObjectName("HeaderTitle")
+        self.title_label.setVisible(not is_gnome)
         layout.addWidget(self.title_label)
 
         layout.addStretch(1)
 
-        # Center: Custom-painted Step Indicator Pills
-        steps_container = QtWidgets.QWidget(self)
-        steps_layout = QtWidgets.QHBoxLayout(steps_container)
-        steps_layout.setContentsMargins(0, 0, 0, 0)
-        steps_layout.setSpacing(8)
+        # Center: CarouselIndicatorDots in GNOME Tour mode, or HeaderStepButton pills in WM mode
+        if is_gnome:
+            self.indicator_dots = CarouselIndicatorDots(count=len(steps), parent=self)
+            self.indicator_dots.dotClicked.connect(self._on_step_button_clicked)
+            layout.addWidget(self.indicator_dots)
+        else:
+            steps_container = QtWidgets.QWidget(self)
+            steps_layout = QtWidgets.QHBoxLayout(steps_container)
+            steps_layout.setContentsMargins(0, 0, 0, 0)
+            steps_layout.setSpacing(8)
 
-        for idx, label in enumerate(steps):
-            btn = HeaderStepButton(label, steps_container)
-            btn.setChecked(idx == 0)
-            btn.clicked.connect(lambda _checked=False, i=idx: self._on_step_button_clicked(i))
-            steps_layout.addWidget(btn)
-            self._step_buttons.append(btn)
+            for idx, label in enumerate(steps):
+                btn = HeaderStepButton(label, steps_container)
+                btn.setChecked(idx == 0)
+                btn.clicked.connect(
+                    lambda _checked=False, i=idx: self._on_step_button_clicked(i)
+                )
+                steps_layout.addWidget(btn)
+                self._step_buttons.append(btn)
 
-        layout.addWidget(steps_container)
+            layout.addWidget(steps_container)
+
         layout.addStretch(1)
 
         # Right: Hamburger Menu Button (☰)
@@ -394,10 +409,18 @@ class HeaderBar(QtWidgets.QFrame):
         self.stepClicked.emit(index)
 
     def set_active_step(self, index: int) -> None:
-        if 0 <= index < len(self._step_buttons):
+        if 0 <= index < self._step_count:
             self._active_step = index
         for idx, btn in enumerate(self._step_buttons):
             btn.setChecked(idx == self._active_step)
+        if self.indicator_dots is not None:
+            self.indicator_dots.set_scroll_position(float(self._active_step))
+
+    def set_scroll_position(self, pos: float) -> None:
+        """Continuously update pagination dots during carousel animations."""
+        self._active_step = round(pos)
+        if self.indicator_dots is not None:
+            self.indicator_dots.set_scroll_position(pos)
 
     @property
     def active_step(self) -> int:
@@ -451,4 +474,6 @@ class HeaderBar(QtWidgets.QFrame):
         self.update()
         for btn in self._step_buttons:
             btn.update()
+        if self.indicator_dots is not None:
+            self.indicator_dots.update()
         self.hamburger_btn.update()
