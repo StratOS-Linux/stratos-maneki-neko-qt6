@@ -1,0 +1,233 @@
+/* ==========================================================================
+   StratOS Maneki Neko — GNOME Edition Structural Stylesheet (Libadwaita UX)
+   Uses Qt palette() roles exclusively so qt6ct and built-in themes flow
+   into the Libadwaita card/headerbar geometry without hardcoded colors.
+   ========================================================================== */
+
+* {
+    font-family: "{{FONT_FAMILY}}", "Cantarell", sans-serif;
+    font-size: {{FONT_SIZE}}pt;
+    outline: none;
+}
+
+QMainWindow, QDialog {
+    background-color: palette(window);
+    color: palette(window-text);
+}
+
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#ScrollContents {
+    background-color: transparent;
+}
+
+/* HeaderBar (AdwHeaderBar style) */
+QFrame#HeaderBar {
+    background-color: palette(base);
+    border-bottom: 1px solid palette(mid);
+    min-height: 52px;
+}
+
+QLabel#HeaderTitle {
+    font-weight: bold;
+    font-size: 12pt;
+    color: palette(window-text);
+}
+
+QLabel#EditionBadge {
+    background-color: palette(alternate-base);
+    color: palette(text);
+    border: 1px solid palette(mid);
+    border-radius: 10px;
+    padding: 3px 10px;
+    font-weight: bold;
+}
+
+/* Step Indicator Pills */
+QPushButton#StepPill {
+    background-color: transparent;
+    color: palette(text);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+
+QPushButton#StepPill:hover {
+    background-color: palette(alternate-base);
+}
+
+QPushButton#StepPill[active="true"] {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+}
+
+/* AdwPreferencesGroup Section Titles */
+QLabel#GroupTitle {
+    font-weight: bold;
+    font-size: 12pt;
+    color: palette(window-text);
+    padding-bottom: 2px;
+}
+
+QLabel#GroupDescription {
+    color: palette(placeholder-text);
+}
+
+/* AdwPreferencesGroup Card Container */
+QFrame#AdwPreferencesGroupCard {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 12px;
+}
+
+/* AdwActionRow */
+QFrame#AdwActionRow {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 12px;
+}
+
+QFrame#AdwActionRow:hover {
+    background-color: palette(alternate-base);
+}
+
+QFrame#AdwActionRow:focus,
+QFrame#AdwActionRow[focused="true"] {
+    border: 2px solid palette(highlight);
+    background-color: palette(alternate-base);
+}
+
+QLabel#RowTitle {
+    font-weight: bold;
+    color: palette(text);
+    background-color: transparent;
+}
+
+QLabel#RowSubtitle {
+    color: palette(window-text);
+    background-color: transparent;
+}
+
+/* Segmented Package Source Pill Buttons (Pacman | Flatpak | AUR) */
+QFrame#SourcePillContainer {
+    background-color: palette(window);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+QPushButton#SourcePillButton {
+    background-color: transparent;
+    color: palette(text);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-weight: bold;
+}
+
+QPushButton#SourcePillButton:hover {
+    background-color: palette(alternate-base);
+}
+
+QPushButton#SourcePillButton:checked {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+}
+
+/* Standard Buttons (Libadwaita pill / rounded buttons) */
+QPushButton {
+    background-color: palette(button);
+    color: palette(button-text);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: palette(light);
+}
+
+QPushButton:pressed {
+    background-color: palette(mid);
+}
+
+QPushButton:focus {
+    border: 2px solid palette(highlight);
+}
+
+QPushButton:disabled {
+    background-color: palette(alternate-base);
+    color: palette(placeholder-text);
+}
+
+QPushButton#PrimaryButton {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+    border: 1px solid palette(highlight);
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-weight: bold;
+}
+
+QPushButton#PrimaryButton:hover {
+    border: 2px solid palette(bright-text);
+}
+
+/* ComboBox (Theme & MIME selectors) */
+QComboBox {
+    background-color: palette(button);
+    color: palette(button-text);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-weight: bold;
+}
+
+QComboBox:focus {
+    border: 2px solid palette(highlight);
+}
+
+QComboBox QAbstractItemView {
+    background-color: palette(base);
+    color: palette(text);
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+}
+
+/* Footer Navigation Bar */
+QFrame#FooterBar {
+    background-color: palette(base);
+    border-top: 1px solid palette(mid);
+}
+
+/* Rescue Banner */
+QFrame#RescueBanner {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+
+QLabel#RescueBannerLabel {
+    color: palette(highlighted-text);
+    font-weight: bold;
+}
+
+/* Terminal Log View (always monospace) */
+QPlainTextEdit#TerminalLogView {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: normal;
+    background-color: palette(dark);
+    color: palette(text);
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    padding: 8px;
+}
+
