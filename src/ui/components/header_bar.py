@@ -302,10 +302,10 @@ class HeaderBar(QtWidgets.QFrame):
                 )
             layout.addWidget(logo_label)
 
-        self.title_label = QtWidgets.QLabel("Maneki Neko", self)
-        self.title_label.setObjectName("HeaderTitle")
-        self.title_label.setVisible(not is_gnome)
-        layout.addWidget(self.title_label)
+        #self.title_label = QtWidgets.QLabel("Maneki Neko", self)
+        #self.title_label.setObjectName("HeaderTitle")
+        #self.title_label.setVisible(not is_gnome)
+        #layout.addWidget(self.title_label)
 
         layout.addStretch(1)
 
@@ -370,7 +370,7 @@ class HeaderBar(QtWidgets.QFrame):
         # 2. Typography / Font Mode Submenu (WM mode) or Refresh Action (GNOME mode)
         env = self.theme_manager.env_info
         if env.ui_mode == "wm":
-            font_menu = self.menu.addMenu("Window Manager Font")
+            font_menu = self.menu.addMenu("Set Font")
             font_group = QtGui.QActionGroup(font_menu)
             font_group.setExclusive(True)
             for mode_id, mode_label in WM_FONT_MODES:

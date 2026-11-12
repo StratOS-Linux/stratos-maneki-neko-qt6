@@ -7,7 +7,6 @@ from pathlib import Path
 from PyQt6 import QtWidgets
 
 from src.core.defaults_manager import DEFAULT_APP_CATEGORIES, DefaultsManager
-from src.core.paths import load_user_settings
 from src.core.runner import TaskCommand, TaskRunner
 from src.core.theme_manager import ThemeManager
 from src.ui.components.adw_card import AdwActionRow, AdwPreferencesGroup, DefaultAppRow
@@ -59,7 +58,7 @@ class SetupPage(QtWidgets.QWidget):
         # 1. System Maintenance Group
         maint_group = AdwPreferencesGroup(
             title="System Maintenance & Utilities",
-            description="Keep your base packages up to date and install core StratOS helper utilities.",
+            description="Keep your base packages and Pacman mirrors up to date.",
             parent=content,
         )
 
@@ -72,26 +71,6 @@ class SetupPage(QtWidgets.QWidget):
         )
         update_row.activated.connect(self._run_system_update)
         maint_group.add_row(update_row)
-
-        grab_row = AdwActionRow(
-            title="Install Grab Utility",
-            subtitle="Install the StratOS Grab helper tool via Pacman",
-            icon_path="images:package manager.png",
-            action_text="Install Grab",
-            parent=maint_group,
-        )
-        grab_row.activated.connect(self._run_install_grab)
-        maint_group.add_row(grab_row)
-
-        flathub_row = AdwActionRow(
-            title="Enable Flathub Repository",
-            subtitle="Ensure the Flathub remote is configured for Flatpak applications",
-            icon_path="images:flatpak.png",
-            action_text="Enable Flathub",
-            parent=maint_group,
-        )
-        flathub_row.activated.connect(self._run_enable_flathub)
-        maint_group.add_row(flathub_row)
 
         layout.addWidget(maint_group)
 
@@ -160,17 +139,6 @@ class SetupPage(QtWidgets.QWidget):
             defaults_group.add_row(app_row)
             self.default_app_rows[spec.id] = app_row
 
-        if self.theme_manager.env_info.ui_mode == "gnome":
-            gnome_settings_row = AdwActionRow(
-                title="GNOME Default Applications Settings",
-                subtitle="Open GNOME Settings to manage additional application permissions and link handlers",
-                icon_path="images:desktop.png",
-                action_text="Open GNOME Settings to change default apps",
-                parent=defaults_group,
-            )
-            gnome_settings_row.activated.connect(self._run_open_gnome_applications_panel)
-            defaults_group.add_row(gnome_settings_row)
-
         layout.addWidget(defaults_group)
 
         # 4. Desktop & Theme Configuration Group
@@ -193,7 +161,7 @@ class SetupPage(QtWidgets.QWidget):
         if self.theme_manager.env_info.ui_mode == "gnome":
             tweaks_row = AdwActionRow(
                 title="Open GNOME Tweaks",
-                subtitle="Change GNOME Shell fonts (e.g. Cantarell / Rubik) and shell appearance",
+                subtitle="Change GNOME Shell fonts and GNOME Shell appearance",
                 icon_path="images:desktop.png",
                 action_text="Open Tweaks",
                 parent=desktop_group,
@@ -258,35 +226,6 @@ class SetupPage(QtWidgets.QWidget):
             )
         )
 
-    def _run_install_grab(self) -> None:
-        self._enqueue_and_start(
-            TaskCommand(
-                title="Install Grab Utility",
-                program="pacman",
-                args=["-S", "--noconfirm", "--needed", "grab"],
-                requires_root=True,
-            )
-        )
-
-    def _run_enable_flathub(self) -> None:
-        settings = load_user_settings()
-        system_wide = bool(settings.get("install_flatpaks_system_wide", True))
-        scope = "--system" if system_wide else "--user"
-        self._enqueue_and_start(
-            TaskCommand(
-                title=f"Enable Flathub Remote ({scope})",
-                program="flatpak",
-                args=[
-                    "remote-add",
-                    "--if-not-exists",
-                    scope,
-                    "flathub",
-                    "https://dl.flathub.org/repo/flathub.flatpakrepo",
-                ],
-                requires_root=False,
-            )
-        )
-
     def _run_stratum_action(
         self, distro_id: str, distro_name: str, action: str
     ) -> None:
@@ -308,33 +247,6 @@ class SetupPage(QtWidgets.QWidget):
                     requires_root=True,
                 )
             )
-
-    def _run_open_gnome_default_apps(self) -> None:
-        """Open the Default Applications page in GNOME Settings (gnome-control-center)."""
-        self._enqueue_and_start(
-            TaskCommand(
-                title="Open Default Applications in GNOME Settings",
-                program="bash",
-                args=[
-                    "-c",
-                    "gnome-control-center default-apps 2>/dev/null "
-                    "|| gnome-control-center system default-apps 2>/dev/null "
-                    "|| gnome-control-center applications",
-                ],
-                requires_root=False,
-            )
-        )
-
-    def _run_open_gnome_applications_panel(self) -> None:
-        """Open the Applications & File Associations page in GNOME Settings."""
-        self._enqueue_and_start(
-            TaskCommand(
-                title="Open Applications Panel in GNOME Settings",
-                program="gnome-control-center",
-                args=["applications"],
-                requires_root=False,
-            )
-        )
 
     def _run_open_qt6ct(self) -> None:
         self._enqueue_and_start(
