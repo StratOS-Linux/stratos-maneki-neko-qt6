@@ -159,11 +159,6 @@ class MainWindow(QtWidgets.QMainWindow):
         footer_layout.setContentsMargins(20, 10, 20, 10)
         footer_layout.setSpacing(12)
 
-        self.credits_btn = QtWidgets.QPushButton("About & Credits", self.footer_bar)
-        self.credits_btn.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.credits_btn.clicked.connect(self.show_credits_dialog)
-        footer_layout.addWidget(self.credits_btn)
-
         mode_hint = " [DRY-RUN SIMULATION]" if self.dry_run else ""
         self.keybind_label = QtWidgets.QLabel(
             f"WASD / Arrows: Navigate & Switch Source • Space: Toggle • Enter: Continue • Ctrl+T: Theme{mode_hint}",

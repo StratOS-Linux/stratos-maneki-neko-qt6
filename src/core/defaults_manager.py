@@ -32,6 +32,7 @@ class DefaultCategorySpec:
     primary_mime: str
     mime_types: tuple[str, ...]
     fallback_icon: str
+    required_match_mimes: tuple[str, ...] | None = None
 
     @property
     def id(self) -> str:
@@ -75,19 +76,78 @@ DEFAULT_APP_CATEGORIES: tuple[DefaultCategorySpec, ...] = (
         fallback_icon="appicons:evince.png",
     ),
     DefaultCategorySpec(
-        category_id="office",
-        title="Default Office Suite",
-        description="Handles Word documents (.odt/.docx), spreadsheets (.ods/.xlsx), and presentations (.odp/.pptx)",
+        category_id="office_doc",
+        title="Default Document App",
+        description="Handles OpenDocument Text (.odt/.ott/.fodt), Microsoft Word (.docx/.doc/.dotx/.docm), and Rich Text (.rtf)",
         primary_mime="application/vnd.oasis.opendocument.text",
         mime_types=(
+            "application/vnd.oasis.opendocument.text",
+            "application/vnd.oasis.opendocument.text-template",
+            "application/vnd.oasis.opendocument.text-flat-xml",
+            "application/vnd.oasis.opendocument.text-master",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+            "application/vnd.ms-word.document.macroEnabled.12",
+            "application/msword",
+            "application/vnd.ms-word",
+            "application/rtf",
+            "text/rtf",
+        ),
+        required_match_mimes=(
             "application/vnd.oasis.opendocument.text",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/msword",
             "application/rtf",
+        ),
+        fallback_icon="appicons:libreoffice.png",
+    ),
+    DefaultCategorySpec(
+        category_id="office_sheet",
+        title="Default Spreadsheet App",
+        description="Handles OpenDocument Spreadsheets (.ods/.ots/.fods), Microsoft Excel (.xlsx/.xls/.xlsm/.xltx), and CSV/TSV",
+        primary_mime="application/vnd.oasis.opendocument.spreadsheet",
+        mime_types=(
+            "application/vnd.oasis.opendocument.spreadsheet",
+            "application/vnd.oasis.opendocument.spreadsheet-template",
+            "application/vnd.oasis.opendocument.spreadsheet-flat-xml",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+            "application/vnd.ms-excel.sheet.macroEnabled.12",
+            "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+            "application/vnd.ms-excel",
+            "application/msexcel",
+            "text/csv",
+            "text/tab-separated-values",
+        ),
+        required_match_mimes=(
             "application/vnd.oasis.opendocument.spreadsheet",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel",
+            "application/msexcel",
+        ),
+        fallback_icon="appicons:libreoffice.png",
+    ),
+    DefaultCategorySpec(
+        category_id="office_pres",
+        title="Default Presentation App",
+        description="Handles OpenDocument Presentations (.odp/.otp/.fodp) and Microsoft PowerPoint (.pptx/.ppsx/.ppt/.pptm)",
+        primary_mime="application/vnd.oasis.opendocument.presentation",
+        mime_types=(
+            "application/vnd.oasis.opendocument.presentation",
+            "application/vnd.oasis.opendocument.presentation-template",
+            "application/vnd.oasis.opendocument.presentation-flat-xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+            "application/vnd.openxmlformats-officedocument.presentationml.template",
+            "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+            "application/vnd.ms-powerpoint",
+            "application/mspowerpoint",
+        ),
+        required_match_mimes=(
             "application/vnd.oasis.opendocument.presentation",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.ms-powerpoint",
+            "application/mspowerpoint",
         ),
         fallback_icon="appicons:libreoffice.png",
     ),
@@ -179,13 +239,17 @@ class DesktopAppEntry:
 
     @property
     def display_label(self) -> str:
-        """Formatted label for dropdowns: 'Program Name  [Source]'."""
-        return f"{self.name}  [{self.source_badge}]"
+        """Formatted label for dropdowns: 'Program Name  [Source]' (or just 'Program Name' if source omitted)."""
+        if self.source_badge:
+            return f"{self.name}  [{self.source_badge}]"
+        return self.name
 
     @property
     def subtitle_summary(self) -> str:
-        """Formatted subtitle for AdwActionRow: 'Program Name • Source'."""
-        return f"{self.name} • {self.source_badge}"
+        """Formatted subtitle for AdwActionRow: 'Program Name • Source' (or just 'Program Name' if source omitted)."""
+        if self.source_badge:
+            return f"{self.name} • {self.source_badge}"
+        return self.name
 
     def resolve_icon_path(self, fallback_asset: str = "images:desktop.png") -> Path | None:
         """Attempt to resolve a concrete image file path for this app's icon."""
@@ -193,28 +257,14 @@ class DesktopAppEntry:
         stem_lower = self.desktop_id.removesuffix(".desktop").lower()
         icon_lower = icon_key.lower()
 
-        # 1. Check bundled StratOS high-DPI icons from data/packages.json first
-        bundled_map = load_bundled_icon_map()
-        for candidate_key in (icon_lower, stem_lower):
-            for known_sub, asset_ref in bundled_map.items():
-                if candidate_key == known_sub or candidate_key.startswith(f"{known_sub}."):
-                    resolved = resolve_asset(asset_ref)
-                    if resolved.is_file():
-                        return resolved
-
-        # Also check direct filename match in assets/icons/app_icons/
-        if icon_lower:
-            direct_bundled = APP_ICONS_DIR / f"{icon_lower}.png"
-            if direct_bundled.is_file():
-                return direct_bundled
-
-        # 2. If Icon= is already an absolute path
+        # 1. If Icon= is already an absolute path
         if icon_key.startswith("/"):
             abs_p = Path(icon_key)
             if abs_p.is_file():
                 return abs_p
 
-        # 3. Search Flatpak (user & system), Bedrock cross, and system hicolor/pixmaps dirs
+        # 2. Search Flatpak (user & system), Bedrock cross, and system hicolor/pixmaps dirs first
+        # so sub-applications (e.g. libreoffice-calc, libreoffice-impress) get their exact icon.
         if icon_key:
             search_roots = [
                 Path.home() / ".local/share/flatpak/exports/share/icons/hicolor",
@@ -242,6 +292,21 @@ class DesktopAppEntry:
                         cand = pix_dir / f"{icon_key}{ext}"
                         if cand.is_file():
                             return cand
+
+        # 3. Check bundled StratOS high-DPI icons from data/packages.json
+        bundled_map = load_bundled_icon_map()
+        for candidate_key in (icon_lower, stem_lower):
+            for known_sub, asset_ref in bundled_map.items():
+                if candidate_key == known_sub or candidate_key.startswith(f"{known_sub}."):
+                    resolved = resolve_asset(asset_ref)
+                    if resolved.is_file():
+                        return resolved
+
+        # Also check direct filename match in assets/icons/app_icons/
+        if icon_lower:
+            direct_bundled = APP_ICONS_DIR / f"{icon_lower}.png"
+            if direct_bundled.is_file():
+                return direct_bundled
 
         # 4. Fallback asset path
         fb = resolve_asset(fallback_asset)
@@ -287,7 +352,14 @@ class DesktopAppEntry:
 
 
 def detect_package_source(desktop_path: Path, entry_fields: dict[str, str]) -> str:
-    """Determine the package manager / installation source for a .desktop file."""
+    """Determine the installation source badge for a .desktop file.
+
+    - Flatpak installations return `"Flatpak (User)"` or `"Flatpak (System)"`.
+    - Programs installed in `/usr/local` (e.g. `/usr/local/bin`) or `~/.local/share/applications`
+      return `"AUR/Script"`.
+    - Standard package manager installations in `/usr/bin` / `/usr/share/applications`
+      (whether Pacman, APT, or DNF) omit the package manager name and return `""`.
+    """
     path_str = str(desktop_path)
     try:
         resolved_str = str(desktop_path.resolve())
@@ -308,47 +380,23 @@ def detect_package_source(desktop_path: Path, entry_fields: dict[str, str]) -> s
     ):
         return "Flatpak (System)"
 
-    # 2. Bedrock Linux cross-stratum detection
-    for check_str in (resolved_str, path_str, exec_cmd):
-        if "/bedrock/strata/" in check_str:
-            parts = check_str.split("/bedrock/strata/", 1)[1].split("/", 1)
-            stratum = parts[0].strip().lower()
-            return _format_stratum_source(stratum)
-        if "strat " in check_str:
-            tokens = check_str.split()
-            for idx, tok in enumerate(tokens):
-                if tok in ("strat", "/bedrock/bin/strat") and idx + 1 < len(tokens):
-                    nxt = tokens[idx + 1]
-                    if not nxt.startswith("-") and idx + 1 < len(tokens):
-                        return _format_stratum_source(nxt.lower())
-
-    if path_str.startswith("/bedrock/cross"):
-        ini_section = entry_fields.get("_bedrock_stratum", "")
-        if ini_section:
-            return _format_stratum_source(ini_section.lower())
-        return "Bedrock Stratum"
-
-    # 3. User-local or /usr/local
+    # 2. Programs installed in /usr/local/bin, /usr/local/share/applications, or ~/.local/share/applications
     user_local_prefix = str(Path.home() / ".local/share/applications")
-    if path_str.startswith(user_local_prefix) or path_str.startswith("/usr/local"):
-        return "User / Script"
+    user_bin_prefix = str(Path.home() / ".local/bin")
+    if (
+        path_str.startswith("/usr/local")
+        or resolved_str.startswith("/usr/local")
+        or "/usr/local/bin" in exec_cmd
+        or "/usr/local/" in exec_cmd
+        or path_str.startswith(user_local_prefix)
+        or resolved_str.startswith(user_local_prefix)
+        or user_bin_prefix in exec_cmd
+    ):
+        return "AUR/Script"
 
-    # 4. Standard /usr/share/applications -> Pacman
-    return "Pacman"
-
-
-def _format_stratum_source(stratum: str) -> str:
-    if stratum in ("arch", "archlinux"):
-        return "Pacman"
-    if stratum in ("ubuntu", "debian"):
-        return f"APT ({stratum.capitalize()})"
-    if stratum == "fedora":
-        return "DNF (Fedora)"
-    if stratum in ("void", "void-musl"):
-        return "XBPS (Void)"
-    if stratum == "gentoo":
-        return "Portage (Gentoo)"
-    return f"Stratum ({stratum})"
+    # 3. Standard package-manager apps in /usr/bin or /usr/share/applications (Pacman, APT, DNF):
+    # omit mentioning the package manager source.
+    return ""
 
 
 def parse_desktop_file(desktop_path: Path) -> DesktopAppEntry | None:
@@ -478,7 +526,12 @@ class DefaultsManager:
         if spec is None:
             return []
 
-        target_mimes = {m.lower() for m in spec.mime_types}
+        match_pool = (
+            spec.required_match_mimes
+            if spec.required_match_mimes
+            else spec.mime_types
+        )
+        target_mimes = {m.lower() for m in match_pool}
         matched: list[DesktopAppEntry] = []
         for entry in self._entries_by_id.values():
             if entry.mime_types & target_mimes:
@@ -498,7 +551,7 @@ class DefaultsManager:
         category: DefaultCategorySpec | str,
         candidates: Sequence[DesktopAppEntry] | None = None,
     ) -> DesktopAppEntry | None:
-        """Alias for `get_current_default_entry(category)`."""
+        """Return the explicitly configured `DesktopAppEntry` for `category`, or `None` if no default is set."""
         spec = self._resolve_spec(category)
         if spec is None:
             return None
@@ -514,7 +567,7 @@ class DefaultsManager:
             for cand in cand_list:
                 if cand.desktop_id.lower() == current_id.lower():
                     return cand
-        return cand_list[0] if cand_list else None
+        return None
 
     def get_current_default_id(self, category: DefaultCategorySpec | str) -> str | None:
         """Query the currently configured default `.desktop` ID for `category`."""
@@ -547,21 +600,8 @@ class DefaultsManager:
     def get_current_default_entry(
         self, category: DefaultCategorySpec | str
     ) -> DesktopAppEntry | None:
-        """Return the active `DesktopAppEntry` for `category` (or the first available candidate)."""
-        spec = self._resolve_spec(category)
-        if spec is None:
-            return None
-
-        candidates = self.get_candidates_for_category(spec)
-        current_id = self.get_current_default_id(spec)
-        if current_id:
-            if current_id in self._entries_by_id:
-                return self._entries_by_id[current_id]
-            for cand in candidates:
-                if cand.desktop_id.lower() == current_id.lower():
-                    return cand
-
-        return candidates[0] if candidates else None
+        """Return the active `DesktopAppEntry` for `category` (or `None` if no default is set)."""
+        return self.get_current_default(category)
 
     def set_default_for_category(
         self, category: DefaultCategorySpec | str, desktop_id: str
@@ -604,10 +644,15 @@ class DefaultsManager:
         return wrote_file
 
     def _read_mimeapps_default(self, mime_type: str) -> str | None:
-        paths_to_check = [
-            self.mimeapps_path,
-            Path("/usr/share/applications/mimeapps.list"),
-        ]
+        paths_to_check = [self.mimeapps_path]
+        if not self._extra_dirs:
+            paths_to_check.extend(
+                [
+                    Path("/etc/xdg/mimeapps.list"),
+                    Path("/usr/share/applications/gnome-mimeapps.list"),
+                    Path("/usr/share/applications/mimeapps.list"),
+                ]
+            )
         for path in paths_to_check:
             if not path.is_file():
                 continue

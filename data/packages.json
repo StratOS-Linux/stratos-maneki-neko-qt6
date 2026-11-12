@@ -221,8 +221,6 @@
       "desktop_aliases": [
         "libreoffice",
         "libreoffice-writer",
-        "libreoffice-calc",
-        "libreoffice-impress",
         "org.libreoffice.libreoffice"
       ]
     },

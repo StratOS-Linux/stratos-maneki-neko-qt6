@@ -119,13 +119,12 @@ class SetupPage(QtWidgets.QWidget):
 
         layout.addWidget(strata_group)
 
-        # 3. Default Applications Group (Browser, Editor, PDF, Office, Image, Media)
+        # 3. Default Applications Group (Browser, Editor, PDF, Document, Spreadsheet, Presentation, Image, Media)
         defaults_group = AdwPreferencesGroup(
             title="Default Applications",
             description=(
                 "Select your preferred Web Browser, Text & Code Editor, PDF Viewer, "
-                "Office Suite, Image Viewer, and Media Player across Pacman, Flatpak, "
-                "and Bedrock Linux strata. (Use A / D or ← / → to cycle options.)"
+                "Document, Spreadsheet, Presentation, Image Viewer, and Media Player."
             ),
             parent=content,
         )

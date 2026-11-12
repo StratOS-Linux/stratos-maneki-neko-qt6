@@ -365,21 +365,16 @@ flowchart LR
 
 *(Ignores entries with `NoDisplay=true` or `Hidden=true` unless they are already the active default handler.)*
 
-#### 2. Detecting Installed Source (Package Manager Badge)
+#### 2. Detecting Installed Source (Package Source Badge)
 For every discovered `.desktop` file, `DefaultsManager` determines its **Installed Source (`source_badge`)** without spawning slow per-file subprocesses:
 - **Flatpak (System):** Path is inside `/var/lib/flatpak/...` (or entry has `X-Flatpak=` and resides in system exports) → Badge: **`Flatpak (System)`**
 - **Flatpak (User):** Path is inside `~/.local/share/flatpak/...` → Badge: **`Flatpak (User)`**
-- **Bedrock Linux Stratum:** Path is inside `/bedrock/cross/applications` or symlink target / `Exec=` references `/bedrock/strata/<stratum>/...` or `strat <stratum>`:
-  - `arch` stratum → **`Pacman`**
-  - `ubuntu` / `debian` stratum → **`APT (Ubuntu)`**
-  - `fedora` stratum → **`DNF (Fedora)`**
-  - Other `<stratum>` → **`Stratum (<stratum>)`**
-- **Native `/usr/share/applications`:** Defaults to **`Pacman`** (with optional one-shot batch `pacman -Qo` verification if needed).
-- **User / Local (`~/.local/share/applications` or `/usr/local/share/applications`):** Badge: **`User / Script`**.
+- **AUR / Script (`/usr/local/bin`, `/usr/local/share/applications`, `~/.local/share/applications`):** Badge: **`AUR/Script`**.
+- **Standard Package Manager (`/usr/bin` / `/usr/share/applications` — Pacman, APT, DNF):** Omits the package manager badge (`source_badge == ""`), displaying only the clean application name.
 
 #### 3. Resolving the Program Favicon (`QIcon`)
 Each `DesktopAppEntry` resolves its `Icon=` key into a crisp `QtGui.QIcon` using a 4-tier lookup:
-1. **Bundled StratOS High-DPI App Icons:** Checks `assets/icons/app_icons/` (`resolve_asset`) for known apps (`firefox`, `librewolf`, `brave`, `chromium`, `vscodium`, `stratvim`, `stratmacs`, `libreoffice`, `onlyoffice`, `evince`, `atril`, `vlc`, `mpv`, `obsidian`, etc.).
+1. **Bundled StratOS High-DPI App Icons (via `data/packages.json`):** Dynamically indexes `id`, `sources`, and `desktop_aliases` from `data/packages.json` to `assets/icons/app_icons/`.
 2. **Flatpak & Bedrock Exported Icon Themes:** Searches:
    - `/var/lib/flatpak/exports/share/icons/hicolor/{scalable,128x128,64x64,48x48}/apps/<Icon>.{svg,png}`
    - `~/.local/share/flatpak/exports/share/icons/hicolor/{scalable,128x128,64x64,48x48}/apps/<Icon>.{svg,png}`
@@ -387,34 +382,39 @@ Each `DesktopAppEntry` resolves its `Icon=` key into a crisp `QtGui.QIcon` using
 3. **Absolute Path:** If `Icon=` is an absolute file path (`/.../icon.png`), loads it directly.
 4. **System Icon Theme Fallback:** Calls `QtGui.QIcon.fromTheme(icon_name)` with a fallback generic application icon so every item in the GUI always displays a clean favicon.
 
-#### 4. Supported Default Application Categories & MIME Type Groups
+#### 4. Supported Default Application Categories & Granular Office MIME Type Groups
 
-| Category ID | Display Label | Primary & Associated MIME Types Updated via `xdg-mime` / `mimeapps.list` |
-| :--- | :--- | :--- |
-| **`browser`** | **Web Browser** | `x-scheme-handler/http`, `x-scheme-handler/https`, `text/html`, `application/xhtml+xml` |
-| **`editor`** | **Text & Code Editor** | `text/plain`, `text/markdown`, `text/x-makefile`, `text/x-python`, `text/x-shellscript`, `application/json` |
-| **`pdf`** | **PDF Document Viewer** | `application/pdf` |
-| **`office_writer`** | **Office Word Processor** | `application/vnd.oasis.opendocument.text`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `application/rtf` |
-| **`office_calc`** | **Office Spreadsheets** | `application/vnd.oasis.opendocument.spreadsheet`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `text/csv` |
-| **`office_impress`** | **Office Presentations** | `application/vnd.oasis.opendocument.presentation`, `application/vnd.openxmlformats-officedocument.presentationml.presentation` |
-| **`image`** | **Image Viewer** | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml` |
-| **`media`** | **Video & Media Player** | `video/mp4`, `video/x-matroska`, `video/webm`, `audio/mpeg`, `audio/flac`, `audio/ogg` |
+Why a single **"Default Office Suite"** dropdown breaks down:
+- Modular office suites (such as **LibreOffice** and **Craft / Calligra**) ship separate `.desktop` files for each component (`libreoffice-writer.desktop` / `WordCraft`, `libreoffice-calc.desktop` / `GridCraft`, `libreoffice-impress.desktop` / `DeckCraft`), where each `.desktop` file only advertises its specific document, spreadsheet, or presentation MIME types.
+- When all office MIME types are pooled into a single `"office"` category using `entry.mime_types & target_mimes`, all three component `.desktop` apps appear in the same dropdown (e.g., `DeckCraft`, `GridCraft`, `LibreOffice Calc`, `LibreOffice Impress`, `LibreOffice Writer`, `WordCraft`). Worse, selecting `LibreOffice Writer` or `DeckCraft` for a single combined category would assign a presentation or word processor `.desktop` handler to spreadsheets!
+- Conversely, unified suites like **ONLYOFFICE Desktop Editors** (`org.onlyoffice.desktopeditors.desktop`) or **WPS Office** advertise all three MIME groups in a single `.desktop` file and will naturally appear as a valid candidate in all three rows.
 
-*(Note: The three Office categories can be unified under a single **"Office Suite"** selector when an all-in-one suite like LibreOffice or OnlyOffice is chosen, or expanded individually if the user prefers separate handlers.)*
+Therefore, Office defaults are split into **3 dedicated, format-complete categories** (**Documents**, **Spreadsheets**, and **Presentations**), giving 8 total Default Application rows:
 
-#### 5. Adaptive UI/UX Presentation (Same Backend, Tailored Frontend)
+| Category ID | Display Label | Subtitle / Format Summary | Complete MIME Types Updated in `~/.config/mimeapps.list` & `xdg-mime` |
+| :--- | :--- | :--- | :--- |
+| **`browser`** | **Default Web Browser** | Handles web links (HTTP/HTTPS) and HTML pages | `x-scheme-handler/http`, `x-scheme-handler/https`, `text/html`, `application/xhtml+xml` |
+| **`editor`** | **Default Text & Code Editor** | Handles plain text, Markdown, config files, and source code | `text/plain`, `text/markdown`, `text/x-python`, `text/x-shellscript`, `application/json` |
+| **`pdf`** | **Default PDF Viewer** | Handles PDF documents (`application/pdf`) | `application/pdf` |
+| **`office_doc`** | **Default Document Viewer & Editor** | Supports OpenDocument Text (`.odt`, `.ott`, `.fodt`), Microsoft Word (`.docx`, `.doc`, `.dotx`, `.docm`), and Rich Text Format (`.rtf`) | • **OpenDocument Text:** `application/vnd.oasis.opendocument.text`, `application/vnd.oasis.opendocument.text-template`, `application/vnd.oasis.opendocument.text-flat-xml`, `application/vnd.oasis.opendocument.text-master`<br>• **Microsoft Word (Modern OOXML & Legacy):** `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.openxmlformats-officedocument.wordprocessingml.template`, `application/vnd.ms-word.document.macroEnabled.12`, `application/msword`, `application/vnd.ms-word`<br>• **Rich Text Format:** `application/rtf`, `text/rtf` |
+| **`office_sheet`** | **Default Spreadsheet App** | Supports OpenDocument Spreadsheets (`.ods`, `.ots`, `.fods`), Microsoft Excel (`.xlsx`, `.xls`, `.xlsm`, `.xltx`), and CSV/TSV | • **OpenDocument Spreadsheet:** `application/vnd.oasis.opendocument.spreadsheet`, `application/vnd.oasis.opendocument.spreadsheet-template`, `application/vnd.oasis.opendocument.spreadsheet-flat-xml`<br>• **Microsoft Excel (Modern OOXML & Legacy):** `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `application/vnd.openxmlformats-officedocument.spreadsheetml.template`, `application/vnd.ms-excel.sheet.macroEnabled.12`, `application/vnd.ms-excel.sheet.binary.macroEnabled.12`, `application/vnd.ms-excel`, `application/msexcel`<br>• **Delimited Data:** `text/csv`, `text/tab-separated-values` |
+| **`office_pres`** | **Default Presentation App** | Supports OpenDocument Presentations (`.odp`, `.otp`, `.fodp`) and Microsoft PowerPoint (`.pptx`, `.ppsx`, `.ppt`, `.pptm`) | • **OpenDocument Presentation:** `application/vnd.oasis.opendocument.presentation`, `application/vnd.oasis.opendocument.presentation-template`, `application/vnd.oasis.opendocument.presentation-flat-xml`<br>• **Microsoft PowerPoint (Modern OOXML & Legacy):** `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `application/vnd.openxmlformats-officedocument.presentationml.slideshow`, `application/vnd.openxmlformats-officedocument.presentationml.template`, `application/vnd.ms-powerpoint.presentation.macroEnabled.12`, `application/vnd.ms-powerpoint`, `application/mspowerpoint` |
+| **`image`** | **Default Image Viewer** | Handles PNG, JPEG, WebP, GIF, and SVG images | `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `image/svg+xml` |
+| **`media`** | **Default Video & Media Player** | Handles MP4, MKV, WebM video and MP3, FLAC, Ogg audio | `video/mp4`, `video/x-matroska`, `video/webm`, `audio/mpeg`, `audio/flac`, `audio/ogg` |
 
-- **GNOME Edition UX (`ui_mode == "gnome"`):**
-  - Inside the **Default Applications** `AdwPreferencesGroup` on the Setup slide:
-    - Renders an `AdwActionRow` for each category (*Web Browser*, *Text Editor*, *PDF Viewer*, *Office Suite*, *Image Viewer*, *Media Player*).
-    - **Leading Icon:** Dynamically displays the **favicon** of the currently active default application for that category.
-    - **Row Title & Subtitle:** Title shows the category (`"Default Web Browser"`); Subtitle shows the active app name and its package source badge (`"Mozilla Firefox • Pacman"` or `"LibreWolf • Flatpak (System)"`).
-    - **Trailing Dropdown (`QComboBox`):** Lists all discovered compatible applications, each with its **favicon** (`addItem(entry.icon, f"{entry.name} ({entry.source_badge})", userData=entry.desktop_id)`). Selecting a new app immediately updates `~/.config/mimeapps.list` + `xdg-mime`, updates the row's leading favicon and subtitle, and logs the change.
-    - **Secondary GNOME Settings Row:** At the bottom of the group, includes a companion row with button **"Open GNOME Settings to change default apps"** (`gnome-control-center applications`) for users who also want to inspect GNOME's built-in permissions/handlers page.
-- **Window Manager Editions UX (`ui_mode == "wm"` — Hyprland, Niri, SwayFX):**
-  - Uses the exact same `DefaultsManager` backend and `AdwActionRow` cards, enhanced for **100% keyboard-driven `WASD` + Arrow navigation**:
-    - Focusing a Default Application row (`W`/`S` or `↑`/`↓`) and pressing **`A` / `D` (`←` / `→`)** cycles through the discovered compatible apps for that category (updating the favicon, program name, and `[Pacman]` / `[Flatpak]` source badge live), or pressing `Space` / `Enter` opens the selector popup!
-    - Also includes edition-specific quick actions (*Edit Hyprland / Niri / SwayFX Config*, *Launch `qt6ct`*, *Launch `nwg-look`*).
+#### 5. Strict Candidate Filtering for Document, Spreadsheet & Presentation Apps
+- To ensure each of the three Office dropdowns only lists true Document, Spreadsheet, or Presentation applications (and doesn't accidentally list a plain text editor in **Default Spreadsheet App** just because that text editor advertises `text/csv`):
+  - Add a `required_match_mimes: tuple[str, ...] | None = None` field to `DefaultCategorySpec`.
+  - When `DefaultsManager.get_candidates_for_category(spec)` filters `.desktop` entries, it checks `entry.mime_types & set(spec.required_match_mimes or spec.mime_types)`.
+  - When the user selects an app, `DefaultsManager.set_default_for_category(spec, desktop_id)` writes **all** `spec.mime_types` (including `text/csv` for spreadsheets and `application/rtf` / `text/rtf` for documents) to `~/.config/mimeapps.list` and `xdg-mime`.
+  - Specifically:
+    - **`office_doc` (`required_match_mimes`):** Matches apps advertising at least one core document format (`application/vnd.oasis.opendocument.text`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/msword`, `application/rtf`) -> shows `LibreOffice Writer`, `WordCraft`, `ONLYOFFICE Desktop Editors`, `AbiWord`, etc.
+    - **`office_sheet` (`required_match_mimes`):** Matches apps advertising at least one core spreadsheet format (`application/vnd.oasis.opendocument.spreadsheet`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `application/vnd.ms-excel`) -> shows `LibreOffice Calc`, `GridCraft`, `ONLYOFFICE Desktop Editors`, `Gnumeric`, etc. (excluding plain text editors that only claim `text/csv`).
+    - **`office_pres` (`required_match_mimes`):** Matches apps advertising at least one core presentation format (`application/vnd.oasis.opendocument.presentation`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `application/vnd.ms-powerpoint`) -> shows `LibreOffice Impress`, `DeckCraft`, `ONLYOFFICE Desktop Editors`, etc.
+
+#### 6. UI/UX Presentation (Both GNOME & Window Manager Editions)
+- Uses `NoWheelComboBox` in every `DefaultAppRow` so scrolling the page never accidentally changes a default application, and `WASD`/Arrow cycling is disabled on `DefaultAppRow`.
+- In `SetupPage` (`src/ui/pages/setup_page.py`), the **Default Applications** `AdwPreferencesGroup` renders all 8 `DefaultAppRow` cards cleanly with their resolved favicons (`QIcon`) and simplified source badges (`Flatpak (System)`, `Flatpak (User)`, `AUR/Script`, or omitted for `/usr/bin` package manager apps).
 
 ---
 

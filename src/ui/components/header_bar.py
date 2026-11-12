@@ -397,13 +397,6 @@ class HeaderBar(QtWidgets.QFrame):
         self.autostart_action.toggled.connect(self._on_autostart_action_toggled)
         self.menu.addAction(self.autostart_action)
 
-        self.menu.addSeparator()
-
-        # 4. About & Credits Action
-        credits_act = QtGui.QAction("About StratOS & Credits...", self.menu)
-        credits_act.triggered.connect(self.creditsRequested.emit)
-        self.menu.addAction(credits_act)
-
     def _on_step_button_clicked(self, index: int) -> None:
         self.set_active_step(index)
         self.stepClicked.emit(index)
