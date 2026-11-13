@@ -1,0 +1,244 @@
+/* ==========================================================================
+   StratOS Maneki Neko — Tiling WM Edition Structural Stylesheet
+   (Hyprland, Niri, SwayFX)
+   Keyboard-first high-visibility focus rings, compact tiling geometry, and
+   dynamic {{FONT_FAMILY}} (JetBrains Mono default or System qt6ct font).
+   ========================================================================== */
+
+* {
+    font-family: "{{FONT_FAMILY}}", "JetBrains Mono", monospace;
+    font-size: {{FONT_SIZE}}pt;
+    outline: none;
+}
+
+QMainWindow, QDialog {
+    background-color: palette(window);
+    color: palette(window-text);
+}
+
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#ScrollContents {
+    background-color: transparent;
+}
+
+/* Top Bar (Tiling WM status-bar style) */
+QFrame#HeaderBar {
+    background-color: palette(alternate-base);
+    border-bottom: 2px solid palette(mid);
+    min-height: 46px;
+}
+
+QLabel#HeaderTitle {
+    font-weight: bold;
+    font-size: 11pt;
+    color: palette(highlight);
+}
+
+QLabel#EditionBadge {
+    background-color: palette(base);
+    color: palette(highlight);
+    border: 1px solid palette(highlight);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-weight: bold;
+}
+
+/* Step Indicator Pills */
+QPushButton#StepPill {
+    background-color: palette(base);
+    color: palette(text);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-weight: bold;
+}
+
+QPushButton#StepPill:hover {
+    border-color: palette(highlight);
+}
+
+QPushButton#StepPill[active="true"] {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+    border-color: palette(highlight);
+}
+
+/* Group Titles */
+QLabel#GroupTitle {
+    font-weight: bold;
+    font-size: 11pt;
+    color: palette(highlight);
+    padding-bottom: 2px;
+}
+
+QLabel#GroupDescription {
+    color: palette(placeholder-text);
+}
+
+/* Group Card Container */
+QFrame#AdwPreferencesGroupCard {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 6px;
+}
+
+/* Action Row with Crisp Keyboard Focus Ring */
+QFrame#AdwActionRow {
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 6px;
+}
+
+QFrame#AdwActionRow:hover {
+    background-color: palette(alternate-base);
+    border: 1px solid palette(light);
+}
+
+QFrame#AdwActionRow:focus,
+QFrame#AdwActionRow[focused="true"] {
+    border: 2px solid palette(highlight);
+    background-color: palette(alternate-base);
+}
+
+QLabel#RowTitle {
+    font-weight: bold;
+    color: palette(text);
+    background-color: transparent;
+}
+
+QLabel#RowSubtitle {
+    color: palette(window-text);
+    background-color: transparent;
+}
+
+/* Segmented Package Source Pill Buttons */
+QFrame#SourcePillContainer {
+    background-color: palette(window);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 1px;
+}
+
+QPushButton#SourcePillButton {
+    background-color: transparent;
+    color: palette(text);
+    border: none;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-weight: bold;
+}
+
+QPushButton#SourcePillButton:hover {
+    background-color: palette(alternate-base);
+}
+
+QPushButton#SourcePillButton:checked {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+}
+
+/* Standard Buttons */
+QPushButton {
+    background-color: palette(button);
+    color: palette(button-text);
+    border: 1px solid palette(mid);
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: palette(light);
+    border-color: palette(highlight);
+}
+
+QPushButton:pressed {
+    background-color: palette(mid);
+}
+
+QPushButton:focus {
+    border: 2px solid palette(highlight);
+}
+
+QPushButton:disabled {
+    background-color: palette(alternate-base);
+    color: palette(placeholder-text);
+}
+
+QPushButton#PrimaryButton {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+    border: 2px solid palette(highlight);
+    border-radius: 5px;
+    padding: 7px 18px;
+    font-weight: bold;
+}
+
+QPushButton#PrimaryButton:focus {
+    border: 2px solid palette(bright-text);
+}
+
+/* ComboBox */
+QComboBox {
+    background-color: palette(button);
+    color: palette(button-text);
+    border: 1px solid palette(mid);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-weight: bold;
+}
+
+QComboBox:focus {
+    border: 2px solid palette(highlight);
+}
+
+QComboBox QAbstractItemView {
+    background-color: palette(base);
+    color: palette(text);
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+    border: 1px solid palette(highlight);
+}
+
+/* Footer & Keybind Hint Bar */
+QFrame#FooterBar {
+    background-color: palette(alternate-base);
+    border-top: 2px solid palette(mid);
+}
+
+QLabel#KeybindHintLabel {
+    color: palette(highlight);
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 9pt;
+}
+
+/* Rescue Banner */
+QFrame#RescueBanner {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+
+QLabel#RescueBannerLabel {
+    color: palette(highlighted-text);
+    font-weight: bold;
+}
+
+/* Terminal Log View */
+QPlainTextEdit#TerminalLogView {
+    font-family: "JetBrains Mono", monospace;
+    background-color: palette(dark);
+    color: palette(text);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 8px;
+}
+

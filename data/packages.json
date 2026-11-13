@@ -1,0 +1,412 @@
+{
+  "categories": [
+    {
+      "id": "web",
+      "label": "Web Browsers",
+      "description": "Fast, secure browsers for everyday web surfing."
+    },
+    {
+      "id": "media",
+      "label": "Media Players",
+      "description": "Audio and video players supporting modern codecs."
+    },
+    {
+      "id": "office",
+      "label": "Office Suites",
+      "description": "Document, spreadsheet, and presentation editors."
+    },
+    {
+      "id": "txt",
+      "label": "Text & Code Editors",
+      "description": "Curated StratOS editors and IDEs for development."
+    },
+    {
+      "id": "misc",
+      "label": "Utilities & Extras",
+      "description": "PDF viewers, knowledge bases, Git clients, and device sync."
+    }
+  ],
+  "packages": [
+    {
+      "id": "librewolf",
+      "name": "LibreWolf",
+      "category": "web",
+      "summary": "Independent privacy-focused fork of Firefox with built-in ad-blocking.",
+      "description": "The LibreWolf project is a custom and independent version of Firefox, with the primary goals of privacy, security and user freedom.",
+      "highlights": [
+        "Built-in uBlock Origin ad-blocker",
+        "Configured with privacy and security in mind",
+        "Free and Open Source Software"
+      ],
+      "website": "https://librewolf.net",
+      "repo": "https://codeberg.org/librewolf",
+      "icon": "app_icons/librewolf.png",
+      "default_checked": true,
+      "default_source": "aur",
+      "sources": {
+        "aur": "librewolf-bin",
+        "flatpak": "io.gitlab.librewolf-community"
+      },
+      "desktop_aliases": [
+        "librewolf",
+        "io.gitlab.librewolf-community"
+      ]
+    },
+    {
+      "id": "firefox",
+      "name": "Mozilla Firefox",
+      "category": "web",
+      "summary": "Cross-platform free and open-source web browser powered by Gecko.",
+      "description": "Mozilla Firefox is a cross-platform free & open-source web browser developed by the Mozilla Foundation. It uses the Gecko rendering engine to display web pages with modern web standards.",
+      "highlights": [
+        "Free and Open Source Software",
+        "Extensive add-on ecosystem and hardware acceleration"
+      ],
+      "website": "https://www.mozilla.org/firefox",
+      "repo": "https://firefox-source-docs.mozilla.org",
+      "icon": "app_icons/firefox.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "firefox",
+        "flatpak": "org.mozilla.Firefox"
+      },
+      "desktop_aliases": [
+        "firefox",
+        "org.mozilla.firefox"
+      ]
+    },
+    {
+      "id": "brave",
+      "name": "Brave Browser",
+      "category": "web",
+      "summary": "Chromium-based browser with built-in shields, ad-blocking, and Tor support.",
+      "description": "Brave Web Browser is based on Chromium and includes performance, privacy, and security enhancement features out of the box.",
+      "highlights": [
+        "Built-in ad-blocker, tracker shields, and Tor private windows",
+        "Open Source Software"
+      ],
+      "website": "https://brave.com",
+      "repo": "https://github.com/brave/brave-browser",
+      "icon": "app_icons/brave.png",
+      "default_checked": false,
+      "default_source": "aur",
+      "sources": {
+        "aur": "brave-bin",
+        "flatpak": "com.brave.Browser"
+      },
+      "desktop_aliases": [
+        "brave",
+        "brave-browser",
+        "com.brave.browser"
+      ]
+    },
+    {
+      "id": "chromium",
+      "name": "Chromium",
+      "category": "web",
+      "summary": "Open-source web browser using the fast Blink rendering engine.",
+      "description": "Chromium is the open-source web browser project that forms the basis for Chrome, Brave, and Vivaldi, using the fast Blink engine without proprietary Google tracking.",
+      "highlights": [
+        "Chrome compatibility without proprietary telemetry",
+        "Free and Open Source Software"
+      ],
+      "website": "https://www.chromium.org/Home/",
+      "repo": "https://github.com/chromium/chromium",
+      "icon": "app_icons/chromium.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "chromium",
+        "flatpak": "org.chromium.Chromium"
+      },
+      "desktop_aliases": [
+        "chromium",
+        "org.chromium.chromium"
+      ]
+    },
+    {
+      "id": "vlc",
+      "name": "VLC Media Player",
+      "category": "media",
+      "summary": "Versatile multimedia player that plays almost any audio or video format.",
+      "description": "VLC is a free and open-source cross-platform multimedia player and framework that plays most multimedia files as well as DVDs, Audio CDs, VCDs, and network streams.",
+      "highlights": [
+        "Plays virtually all codecs without extra packs",
+        "Free and Open Source Software"
+      ],
+      "website": "https://www.videolan.org/vlc/",
+      "repo": "https://github.com/videolan/vlc",
+      "icon": "app_icons/vlc.png",
+      "default_checked": true,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "vlc",
+        "aur": "vlc-git",
+        "flatpak": "org.videolan.VLC"
+      },
+      "desktop_aliases": [
+        "vlc",
+        "org.videolan.vlc"
+      ]
+    },
+    {
+      "id": "mpv",
+      "name": "MPV Media Player",
+      "category": "media",
+      "summary": "Minimalist, keyboard-driven media player with hardware-accelerated HDR playback.",
+      "description": "mpv is a free media player for the command line and desktop. It supports a wide variety of media file formats, audio and video codecs, and subtitle types.",
+      "highlights": [
+        "Hardware-accelerated video decoding with HDR support",
+        "Minimalist UI and powerful Lua/JS scripting capabilities"
+      ],
+      "website": "https://mpv.io",
+      "repo": "https://github.com/mpv-player/mpv",
+      "icon": "app_icons/mpv.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "mpv",
+        "aur": "mpv-full",
+        "flatpak": "io.mpv.Mpv"
+      },
+      "desktop_aliases": [
+        "mpv",
+        "io.mpv.mpv"
+      ]
+    },
+    {
+      "id": "onlyoffice",
+      "name": "ONLYOFFICE Desktop Editors",
+      "category": "office",
+      "summary": "Modern tabbed office suite with high Microsoft Office format compatibility.",
+      "description": "Create, view, and edit text documents, spreadsheets, and presentations of any size and complexity. Work on DOCX, ODT, XLSX, ODS, CSV, PPTX, and ODP within a single tabbed window.",
+      "highlights": [
+        "High fidelity with Microsoft Office document formats",
+        "Free and Open Source Software"
+      ],
+      "website": "https://www.onlyoffice.com",
+      "repo": "https://github.com/ONLYOFFICE/DesktopEditors",
+      "icon": "app_icons/onlyoffice.png",
+      "default_checked": true,
+      "default_source": "flatpak",
+      "sources": {
+        "flatpak": "org.onlyoffice.desktopeditors"
+      },
+      "desktop_aliases": [
+        "onlyoffice",
+        "onlyoffice-desktopeditors",
+        "org.onlyoffice.desktopeditors"
+      ]
+    },
+    {
+      "id": "libreoffice",
+      "name": "LibreOffice",
+      "category": "office",
+      "summary": "Full-featured open-source office productivity suite for Linux.",
+      "description": "LibreOffice is a powerful office suite supporting word processing (Writer), spreadsheets (Calc), presentations (Impress), vector graphics (Draw), databases (Base), and math formulas.",
+      "highlights": [
+        "Complete free and open-source office suite",
+        "Native ODF support and wide format compatibility"
+      ],
+      "website": "https://www.libreoffice.org",
+      "repo": "https://git.libreoffice.org/core",
+      "icon": "app_icons/libreoffice.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "libreoffice-fresh",
+        "flatpak": "org.libreoffice.LibreOffice"
+      },
+      "desktop_aliases": [
+        "libreoffice",
+        "libreoffice-writer",
+        "org.libreoffice.libreoffice"
+      ]
+    },
+    {
+      "id": "stratmacs",
+      "name": "StratMacs (GNU Emacs for StratOS)",
+      "category": "txt",
+      "summary": "Preconfigured GNU Emacs spin tailored for StratOS workflows.",
+      "description": "StratMacs is a powerful spin of GNU Emacs built with curated plugins and extensions that enhance your development workflow with tight StratOS integration.",
+      "highlights": [
+        "Easier for beginners to learn and use than Vim",
+        "Free and Open Source Software"
+      ],
+      "website": "https://stratos-linux.org",
+      "repo": "https://github.com/StratOS-Linux/Stratmacs",
+      "icon": "app_icons/stratmacs.png",
+      "default_checked": true,
+      "default_source": "script",
+      "sources": {
+        "script": "stratmacs_installer"
+      },
+      "desktop_aliases": [
+        "emacs",
+        "stratmacs"
+      ]
+    },
+    {
+      "id": "stratvim",
+      "name": "StratVIM (NeoVim for StratOS)",
+      "category": "txt",
+      "summary": "Community-curated NeoVim configuration for rapid terminal development.",
+      "description": "StratVIM is a powerful spin of NeoVim preloaded with LSP, syntax highlighting, and productivity extensions for developers on StratOS.",
+      "highlights": [
+        "Modal editing for high-speed keyboard productivity",
+        "Free and Open Source Software"
+      ],
+      "website": "https://stratos-linux.org",
+      "repo": "https://github.com/StratOS-Linux/StratVIM",
+      "icon": "app_icons/stratvim.png",
+      "default_checked": false,
+      "default_source": "script",
+      "sources": {
+        "script": "stratvim_installer"
+      },
+      "desktop_aliases": [
+        "nvim",
+        "neovim",
+        "stratvim"
+      ]
+    },
+    {
+      "id": "vscodium",
+      "name": "VSCodium",
+      "category": "txt",
+      "summary": "Community-driven, telemetry-free binary distribution of VS Code.",
+      "description": "VSCodium provides everything developers need from Microsoft VS Code, compiled from source without Microsoft branding, telemetry, or tracking.",
+      "highlights": [
+        "Vast extension ecosystem for every programming language",
+        "Built-in terminal, Git integration, and debugger"
+      ],
+      "website": "https://vscodium.com",
+      "repo": "https://github.com/VSCodium/vscodium",
+      "icon": "app_icons/vscodium.png",
+      "default_checked": false,
+      "default_source": "aur",
+      "sources": {
+        "aur": "vscodium-bin",
+        "flatpak": "com.vscodium.codium"
+      },
+      "desktop_aliases": [
+        "vscodium",
+        "codium",
+        "com.vscodium.codium"
+      ]
+    },
+    {
+      "id": "evince",
+      "name": "Evince PDF Document Viewer",
+      "category": "misc",
+      "summary": "Official GNOME document viewer for PDF, PostScript, DjVu, and TIFF.",
+      "description": "Evince lets you view, search, and annotate documents across multiple formats with clean desktop integration.",
+      "highlights": [
+        "Supports PDF, PostScript, DjVu, TIFF, DVI, XPS, and SyncTeX",
+        "Fast, clean interface"
+      ],
+      "website": "https://wiki.gnome.org/Apps/Evince",
+      "repo": "https://gitlab.gnome.org/GNOME/evince",
+      "icon": "app_icons/evince.png",
+      "default_checked": true,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "evince"
+      },
+      "desktop_aliases": [
+        "evince",
+        "org.gnome.evince"
+      ]
+    },
+    {
+      "id": "atril",
+      "name": "Atril PDF Viewer",
+      "category": "misc",
+      "summary": "Lightweight multi-page document viewer maintained by the MATE team.",
+      "description": "Atril is a fast, low-resource fork of Evince supporting PDF, PostScript, DjVu, DVI, and XPS documents.",
+      "highlights": [
+        "Lightweight and fast startup",
+        "Supports PDF, PostScript, DjVu, DVI, and XPS"
+      ],
+      "website": "https://mate-desktop.org",
+      "repo": "https://github.com/mate-desktop/atril",
+      "icon": "app_icons/atril.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "atril"
+      },
+      "desktop_aliases": [
+        "atril"
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub Desktop",
+      "category": "misc",
+      "summary": "Graphical Git client for managing branches, commits, and pull requests.",
+      "description": "GitHub Desktop is a GUI application that helps developers interact with GitHub and Git repositories without needing the command line.",
+      "highlights": [
+        "Visual diff viewer, branch management, and PR workflows",
+        "Open Source Software (Linux fork maintained by shiftkey)"
+      ],
+      "website": "https://desktop.github.com",
+      "repo": "https://github.com/shiftkey/desktop",
+      "icon": "app_icons/github.png",
+      "default_checked": false,
+      "default_source": "aur",
+      "sources": {
+        "aur": "github-desktop-bin"
+      },
+      "desktop_aliases": [
+        "github-desktop",
+        "io.github.shiftey.desktop"
+      ]
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "category": "misc",
+      "summary": "Markdown knowledge base with bidirectional linking and graph visualization.",
+      "description": "Obsidian works on top of a local folder of plain-text Markdown files, enabling frictionless note-taking, backlinks, and interactive graph exploration.",
+      "highlights": [
+        "Supports CommonMark, GitHub Flavored Markdown, LaTeX, and Mermaid",
+        "Local-first plain-text storage"
+      ],
+      "website": "https://obsidian.md",
+      "repo": "",
+      "icon": "app_icons/obsidian.png",
+      "default_checked": false,
+      "default_source": "pacman",
+      "sources": {
+        "pacman": "obsidian",
+        "aur": "obsidian-bin"
+      },
+      "desktop_aliases": [
+        "obsidian",
+        "md.obsidian.obsidian"
+      ]
+    },
+    {
+      "id": "gsconnect",
+      "name": "GSConnect",
+      "category": "misc",
+      "summary": "KDE Connect implementation for GNOME to sync phones and desktops.",
+      "description": "GSConnect connects your Linux computer to Android, iOS, or other computers on the same network to share files, clipboard, notifications, and remote control.",
+      "highlights": [
+        "Seamless wireless file transfer and notification sync",
+        "Free and Open Source Software"
+      ],
+      "website": "https://github.com/GSConnect/gnome-shell-extension-gsconnect/wiki",
+      "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect",
+      "icon": "app_icons/gsconnect.png",
+      "default_checked": false,
+      "default_source": "aur",
+      "sources": {
+        "aur": "gnome-shell-extension-gsconnect"
+      }
+    }
+  ]
+}
+

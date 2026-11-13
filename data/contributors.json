@@ -1,0 +1,46 @@
+{
+  "attribution": {
+    "title": "StratOS is made possible by Bedrock Linux",
+    "url": "https://bedrocklinux.org/",
+    "repo_url": "https://github.com/stratos-linux"
+  },
+  "contributors": [
+    {
+      "name": "Dhruv Hatkar",
+      "role": "Project lead, StratVIM and OS configuration"
+    },
+    {
+      "name": "Srikanth Anand",
+      "role": "StratOS installer and maintainer, rock package manager"
+    },
+    {
+      "name": "Srinath Anand",
+      "role": "StratOS installer and maintainer, rock package manager"
+    },
+    {
+      "name": "Yeyati Prasher",
+      "role": "StratOS theming and configuration"
+    },
+    {
+      "name": "Shoubhit Dash",
+      "role": "StratVIM configuration, StratOS website"
+    },
+    {
+      "name": "Aadivishnu Gajendra",
+      "role": "grab fetch script"
+    },
+    {
+      "name": "Adithya Sunil",
+      "role": "StratOS Welcome Screen (Maneki Neko)"
+    },
+    {
+      "name": "Rohit A S",
+      "role": "Wallpapers"
+    },
+    {
+      "name": "Aryan Mehesare",
+      "role": "Wallpapers"
+    }
+  ]
+}
+
